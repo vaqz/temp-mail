@@ -3,7 +3,7 @@
 export const DOMAINS = [
 	{
 		owner: "vwh",
-		domain: "barid.site",
+		domain: "vaqzmobiz.com",
 	},
 	{
 		owner: "vwh",
