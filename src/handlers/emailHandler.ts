@@ -106,6 +106,7 @@ export async function handleEmail(
 			text_content: textContent,
 			has_attachments: validAttachments.length > 0,
 			attachment_count: validAttachments.length,
+			is_public: false,
 		});
 
 		// Insert email
