@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS emails (
     html_content TEXT,
     text_content TEXT,
     has_attachments BOOLEAN DEFAULT FALSE,
-    attachment_count INTEGER DEFAULT 0
+    attachment_count INTEGER DEFAULT 0,
+    is_public INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS attachments (
