@@ -16,31 +16,121 @@ interface EmailAttachment {
 }
 
 /**
+ * Check whether an incoming email matches a PUBLIC visibility rule.
+ *
+ * Rules are global and are NOT tied to a specific recipient.
+ *
+ * Example:
+ * sender_pattern = "promo@company.com"
+ * subject_pattern = "promotion"
+ *
+ * This can make matching emails public across all
+ * @vaqzmobiz.com mailboxes.
+ *
+ * If no rule matches, the email remains PRIVATE.
+ */
+async function matchesPublicVisibilityRule(
+	dbConnection: D1Database,
+	fromAddress: string,
+	subject: string | null,
+): Promise<boolean> {
+	try {
+		const { results } = await dbConnection
+			.prepare(
+				`SELECT sender_pattern, subject_pattern, action
+				 FROM email_visibility_rules
+				 WHERE action = 'public'`,
+			)
+			.all();
+
+		const sender = fromAddress.trim().toLowerCase();
+		const emailSubject = (subject || "").trim().toLowerCase();
+
+		for (const rule of results as Array<{
+			sender_pattern: string | null;
+			subject_pattern: string | null;
+			action: string;
+		}>) {
+			const senderPattern = String(rule.sender_pattern || "")
+				.trim()
+				.toLowerCase();
+
+			const subjectPattern = String(rule.subject_pattern || "")
+				.trim()
+				.toLowerCase();
+
+			// If the rule specifies a sender, it must match exactly.
+			if (senderPattern && sender !== senderPattern) {
+				continue;
+			}
+
+			// If the rule specifies a subject pattern,
+			// the incoming subject must contain it.
+			if (
+				subjectPattern &&
+				!emailSubject.includes(subjectPattern)
+			) {
+				continue;
+			}
+
+			// All specified conditions matched.
+			return true;
+		}
+
+		return false;
+	} catch (error) {
+		console.error(
+			"Failed to check email visibility rules:",
+			error,
+		);
+
+		// SECURITY DEFAULT:
+		// If rule checking fails, NEVER expose the email.
+		return false;
+	}
+}
+
+/**
  * Validate and filter email attachments
  */
-function validateAttachments(attachments: EmailAttachment[], emailId: string): EmailAttachment[] {
+function validateAttachments(
+	attachments: EmailAttachment[],
+	emailId: string,
+): EmailAttachment[] {
 	const validAttachments = [];
 	let totalAttachmentSize = 0;
 
 	for (const attachment of attachments) {
 		// Skip attachments without filename
 		if (!attachment.filename) {
-			console.warn(`Email ${emailId}: Attachment without filename, skipping`);
+			console.warn(
+				`Email ${emailId}: Attachment without filename, skipping`,
+			);
 			continue;
 		}
 
-		if (validAttachments.length >= ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
-			console.warn(`Email ${emailId}: Too many attachments, skipping remaining`);
+		if (
+			validAttachments.length >=
+			ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL
+		) {
+			console.warn(
+				`Email ${emailId}: Too many attachments, skipping remaining`,
+			);
 			break;
 		}
 
 		const attachmentSize =
 			attachment.content instanceof ArrayBuffer
 				? attachment.content.byteLength
-				: new TextEncoder().encode(attachment.content || "").byteLength;
+				: new TextEncoder().encode(
+						attachment.content || "",
+					).byteLength;
 
 		// Check file type
-		const contentType = attachment.mimeType || "application/octet-stream";
+		const contentType =
+			attachment.mimeType ||
+			"application/octet-stream";
+
 		if (
 			!ATTACHMENT_LIMITS.ALLOWED_TYPES.includes(
 				contentType as (typeof ATTACHMENT_LIMITS.ALLOWED_TYPES)[number],
@@ -52,7 +142,10 @@ function validateAttachments(attachments: EmailAttachment[], emailId: string): E
 			continue;
 		}
 
-		if (attachmentSize > ATTACHMENT_LIMITS.MAX_SIZE) {
+		if (
+			attachmentSize >
+			ATTACHMENT_LIMITS.MAX_SIZE
+		) {
 			console.warn(
 				`Email ${emailId}: Attachment ${attachment.filename} too large (${attachmentSize} bytes), skipping`,
 			);
@@ -60,7 +153,12 @@ function validateAttachments(attachments: EmailAttachment[], emailId: string): E
 		}
 
 		totalAttachmentSize += attachmentSize;
-		if (totalAttachmentSize > ATTACHMENT_LIMITS.MAX_SIZE * ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
+
+		if (
+			totalAttachmentSize >
+			ATTACHMENT_LIMITS.MAX_SIZE *
+				ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL
+		) {
 			console.warn(
 				`Email ${emailId}: Total attachment size too large, skipping remaining attachments`,
 			);
@@ -82,48 +180,100 @@ export async function handleEmail(
 	ctx: ExecutionContext,
 ) {
 	try {
-		const timer = new PerformanceTimer("email-processing");
+		const timer = new PerformanceTimer(
+			"email-processing",
+		);
+
 		const emailId = createId();
 		const email = await PostalMime.parse(message.raw);
 
 		// Process email content
-		const { htmlContent, textContent } = processEmailContent(
-			email.html ?? null,
-			email.text ?? null,
-		);
+		const { htmlContent, textContent } =
+			processEmailContent(
+				email.html ?? null,
+				email.text ?? null,
+			);
 
 		// Process attachments
 		const attachments = email.attachments || [];
-		const validAttachments = validateAttachments(attachments, emailId);
+		const validAttachments =
+			validateAttachments(
+				attachments,
+				emailId,
+			);
+
+		const fromAddress =
+			email.from?.address || message.from;
+
+		const subject =
+			email.subject || null;
+
+		/*
+		 * DEFAULT:
+		 * Every incoming email is PRIVATE.
+		 *
+		 * EXCEPTION:
+		 * If it matches a PUBLIC visibility rule,
+		 * it becomes PUBLIC automatically.
+		 */
+		const isPublic =
+			await matchesPublicVisibilityRule(
+				env.D1,
+				fromAddress,
+				subject,
+			);
 
 		const emailData = emailSchema.parse({
 			id: emailId,
-			from_address: email.from?.address || message.from,
+			from_address: fromAddress,
 			to_address: message.to,
-			subject: email.subject || null,
+			subject: subject,
 			received_at: now(),
 			html_content: htmlContent,
 			text_content: textContent,
-			has_attachments: validAttachments.length > 0,
-			attachment_count: validAttachments.length,
-			is_public: false,
+			has_attachments:
+				validAttachments.length > 0,
+			attachment_count:
+				validAttachments.length,
+			is_public: isPublic,
 		});
 
 		// Insert email
-		const { success, error } = await db.insertEmail(env.D1, emailData);
+		const { success, error } =
+			await db.insertEmail(
+				env.D1,
+				emailData,
+			);
 
 		if (!success) {
-			throw new Error(`Failed to insert email: ${error}`);
+			throw new Error(
+				`Failed to insert email: ${error}`,
+			);
 		}
+
+		console.log(
+			`Email ${emailId} stored as ${
+				isPublic ? "PUBLIC" : "PRIVATE"
+			}`,
+		);
 
 		// Process and store attachments
 		if (validAttachments.length > 0) {
-			ctx.waitUntil(processAttachments(env, emailId, validAttachments as EmailAttachment[]));
+			ctx.waitUntil(
+				processAttachments(
+					env,
+					emailId,
+					validAttachments as EmailAttachment[],
+				),
+			);
 		}
 
 		timer.end(); // Log processing time
 	} catch (error) {
-		console.error("Failed to process email:", error);
+		console.error(
+			"Failed to process email:",
+			error,
+		);
 		throw error;
 	}
 }
@@ -138,7 +288,9 @@ async function processSingleAttachment(
 ): Promise<void> {
 	// Skip attachments without filename
 	if (!attachment.filename) {
-		console.warn(`Skipping attachment without filename in email ${emailId}`);
+		console.warn(
+			`Skipping attachment without filename in email ${emailId}`,
+		);
 		return;
 	}
 
@@ -147,29 +299,47 @@ async function processSingleAttachment(
 	let content: ArrayBuffer;
 	let attachmentSize: number;
 
-	if (attachment.content instanceof ArrayBuffer) {
+	if (
+		attachment.content instanceof ArrayBuffer
+	) {
 		content = attachment.content;
 		attachmentSize = content.byteLength;
 	} else {
-		const encodedContent = new TextEncoder().encode(attachment.content || "");
-		content = encodedContent.buffer as ArrayBuffer;
+		const encodedContent = new TextEncoder().encode(
+			attachment.content || "",
+		);
+
+		content =
+			encodedContent.buffer as ArrayBuffer;
+
 		attachmentSize = encodedContent.byteLength;
 	}
 
 	// Generate R2 key
-	const r2Key = r2.generateR2Key(emailId, attachmentId, attachment.filename);
+	const r2Key = r2.generateR2Key(
+		emailId,
+		attachmentId,
+		attachment.filename,
+	);
 
 	// Store in R2
-	const { success: r2Success, error: r2Error } = await r2.storeAttachment(
+	const {
+		success: r2Success,
+		error: r2Error,
+	} = await r2.storeAttachment(
 		env.R2,
 		r2Key,
 		content,
-		attachment.mimeType || "application/octet-stream",
+		attachment.mimeType ||
+			"application/octet-stream",
 		attachment.filename,
 	);
 
 	if (!r2Success) {
-		console.error(`Failed to store attachment ${attachment.filename}:`, r2Error);
+		console.error(
+			`Failed to store attachment ${attachment.filename}:`,
+			r2Error,
+		);
 		return;
 	}
 
@@ -178,17 +348,33 @@ async function processSingleAttachment(
 		id: attachmentId,
 		email_id: emailId,
 		filename: attachment.filename,
-		content_type: attachment.mimeType || "application/octet-stream",
+		content_type:
+			attachment.mimeType ||
+			"application/octet-stream",
 		size: attachmentSize,
 		r2_key: r2Key,
 		created_at: now(),
 	};
 
-	const { success: dbSuccess, error: dbError } = await db.insertAttachment(env.D1, attachmentData);
+	const {
+		success: dbSuccess,
+		error: dbError,
+	} = await db.insertAttachment(
+		env.D1,
+		attachmentData,
+	);
+
 	if (!dbSuccess) {
-		console.error(`Failed to store attachment metadata for ${attachment.filename}:`, dbError);
+		console.error(
+			`Failed to store attachment metadata for ${attachment.filename}:`,
+			dbError,
+		);
+
 		// Try to clean up R2 object
-		await r2.deleteAttachment(env.R2, r2Key);
+		await r2.deleteAttachment(
+			env.R2,
+			r2Key,
+		);
 	}
 }
 
@@ -202,9 +388,16 @@ async function processAttachments(
 ) {
 	try {
 		for (const attachment of attachments) {
-			await processSingleAttachment(env, emailId, attachment);
+			await processSingleAttachment(
+				env,
+				emailId,
+				attachment,
+			);
 		}
 	} catch (error) {
-		console.error("Failed to process attachments:", error);
+		console.error(
+			"Failed to process attachments:",
+			error,
+		);
 	}
 }
