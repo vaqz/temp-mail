@@ -9,8 +9,19 @@ export class DatabaseService {
 		try {
 			const { success, error, meta } = await this.db
 				.prepare(
-					`INSERT INTO emails (id, from_address, to_address, subject, received_at, html_content, text_content, has_attachments, attachment_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					`INSERT INTO emails (
+						id,
+						from_address,
+						to_address,
+						subject,
+						received_at,
+						html_content,
+						text_content,
+						has_attachments,
+						attachment_count,
+						is_public
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				)
 				.bind(
 					emailData.id,
@@ -22,12 +33,14 @@ export class DatabaseService {
 					emailData.text_content,
 					emailData.has_attachments,
 					emailData.attachment_count,
+					emailData.is_public,
 				)
 				.run();
+
 			return { success, error, meta };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
-			return { success: false, error: error, meta: undefined };
+			return { success: false, error, meta: undefined };
 		}
 	}
 
@@ -35,19 +48,27 @@ export class DatabaseService {
 		try {
 			const { results, error } = await this.db
 				.prepare(
-					`SELECT id, from_address, to_address, subject, received_at, has_attachments, attachment_count
-         FROM emails
-         WHERE to_address = ?
-         ORDER BY received_at DESC
-         LIMIT ? OFFSET ?`,
+					`SELECT
+						id,
+						from_address,
+						to_address,
+						subject,
+						received_at,
+						has_attachments,
+						attachment_count,
+						is_public
+					FROM emails
+					WHERE to_address = ?
+					ORDER BY received_at DESC
+					LIMIT ? OFFSET ?`,
 				)
 				.bind(emailAddress, limit, offset)
 				.all();
 
-			// Convert integer boolean values to actual booleans
 			const processedResults = (results as any[]).map((email) => ({
 				...email,
 				has_attachments: Boolean(email.has_attachments),
+				is_public: Boolean(email.is_public),
 			}));
 
 			return { results: processedResults as EmailSummary[], error };
@@ -65,12 +86,12 @@ export class DatabaseService {
 				.all();
 
 			if (results[0]) {
-				// Convert integer boolean values to actual booleans
-			const email = {
-				...results[0],
-				has_attachments: Boolean(results[0].has_attachments),
-				is_public: Boolean(results[0].is_public),
-			};
+				const email = {
+					...results[0],
+					has_attachments: Boolean(results[0].has_attachments),
+					is_public: Boolean(results[0].is_public),
+				};
+
 				return { result: email as Email, error };
 			}
 
@@ -87,6 +108,7 @@ export class DatabaseService {
 				.prepare(`SELECT COUNT(*) as count FROM emails WHERE to_address = ?`)
 				.bind(emailAddress)
 				.all();
+
 			return { count: results[0]?.count || 0, error };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
@@ -100,6 +122,7 @@ export class DatabaseService {
 				.prepare(`DELETE FROM emails WHERE to_address = ?`)
 				.bind(emailAddress)
 				.run();
+
 			return { meta, error };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
@@ -113,6 +136,7 @@ export class DatabaseService {
 				.prepare(`DELETE FROM emails WHERE id = ?`)
 				.bind(emailId)
 				.run();
+
 			return { meta, error };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
@@ -125,8 +149,16 @@ export class DatabaseService {
 		try {
 			const { success, error, meta } = await this.db
 				.prepare(
-					`INSERT INTO attachments (id, email_id, filename, content_type, size, r2_key, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+					`INSERT INTO attachments (
+						id,
+						email_id,
+						filename,
+						content_type,
+						size,
+						r2_key,
+						created_at
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?)`,
 				)
 				.bind(
 					attachmentData.id,
@@ -138,10 +170,11 @@ export class DatabaseService {
 					attachmentData.created_at,
 				)
 				.run();
+
 			return { success, error, meta };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
-			return { success: false, error: error, meta: undefined };
+			return { success: false, error, meta: undefined };
 		}
 	}
 
@@ -149,13 +182,19 @@ export class DatabaseService {
 		try {
 			const { results, error } = await this.db
 				.prepare(
-					`SELECT id, filename, content_type, size, created_at
-         FROM attachments
-         WHERE email_id = ?
-         ORDER BY created_at ASC`,
+					`SELECT
+						id,
+						filename,
+						content_type,
+						size,
+						created_at
+					FROM attachments
+					WHERE email_id = ?
+					ORDER BY created_at ASC`,
 				)
 				.bind(emailId)
 				.all();
+
 			return { results: results as AttachmentSummary[], error };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
@@ -169,7 +208,11 @@ export class DatabaseService {
 				.prepare(`SELECT * FROM attachments WHERE id = ?`)
 				.bind(attachmentId)
 				.all();
-			return { result: results[0] as Attachment | undefined, error };
+
+			return {
+				result: results[0] as Attachment | undefined,
+				error,
+			};
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
 			return { result: undefined, error };
@@ -182,10 +225,11 @@ export class DatabaseService {
 				.prepare(`DELETE FROM attachments WHERE id = ?`)
 				.bind(attachmentId)
 				.run();
+
 			return { success, error, meta };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
-			return { success: false, error: error, meta: undefined };
+			return { success: false, error, meta: undefined };
 		}
 	}
 
@@ -198,32 +242,47 @@ export class DatabaseService {
 			const { success, error, meta } = await this.db
 				.prepare(
 					`UPDATE emails
-         SET has_attachments = ?, attachment_count = ?
-         WHERE id = ?`,
+					SET has_attachments = ?, attachment_count = ?
+					WHERE id = ?`,
 				)
 				.bind(hasAttachments, attachmentCount, emailId)
 				.run();
+
 			return { success, error, meta };
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
-			return { success: false, error: error, meta: undefined };
+			return { success: false, error, meta: undefined };
 		}
 	}
 
 	// Optimized attachment query
-	async getEmailsWithAttachments(emailAddress: string, limit: number, offset: number) {
+	async getEmailsWithAttachments(
+		emailAddress: string,
+		limit: number,
+		offset: number,
+	) {
 		try {
 			const { results, error } = await this.db
 				.prepare(
 					`SELECT
-            e.id, e.from_address, e.to_address, e.subject, e.received_at,
-            e.has_attachments, e.attachment_count,
-            a.id as att_id, a.filename, a.content_type, a.size, a.created_at as att_created_at
-          FROM emails e
-          LEFT JOIN attachments a ON e.id = a.email_id
-          WHERE e.to_address = ?
-          ORDER BY e.received_at DESC, a.created_at ASC
-          LIMIT ? OFFSET ?`,
+						e.id,
+						e.from_address,
+						e.to_address,
+						e.subject,
+						e.received_at,
+						e.has_attachments,
+						e.attachment_count,
+						e.is_public,
+						a.id as att_id,
+						a.filename,
+						a.content_type,
+						a.size,
+						a.created_at as att_created_at
+					FROM emails e
+					LEFT JOIN attachments a ON e.id = a.email_id
+					WHERE e.to_address = ?
+					ORDER BY e.received_at DESC, a.created_at ASC
+					LIMIT ? OFFSET ?`,
 				)
 				.bind(emailAddress, limit, offset)
 				.all();
@@ -232,7 +291,6 @@ export class DatabaseService {
 				return { results: [], error };
 			}
 
-			// Group results by email and combine attachments
 			const emailMap = new Map<string, any>();
 
 			for (const row of results as any[]) {
@@ -245,14 +303,16 @@ export class DatabaseService {
 						to_address: row.to_address,
 						subject: row.subject,
 						received_at: row.received_at,
-						has_attachments: row.has_attachments,
+						has_attachments: Boolean(row.has_attachments),
 						attachment_count: row.attachment_count,
+						is_public: Boolean(row.is_public),
 						attachments: [],
 					});
 				}
 
 				if (row.att_id) {
 					const email = emailMap.get(emailId);
+
 					email.attachments.push({
 						id: row.att_id,
 						filename: row.filename,
@@ -264,6 +324,7 @@ export class DatabaseService {
 			}
 
 			const emailsWithAttachments = Array.from(emailMap.values());
+
 			const allAttachments = emailsWithAttachments.flatMap((email) =>
 				email.attachments.map((att: any) => ({
 					...att,
@@ -271,7 +332,10 @@ export class DatabaseService {
 				})),
 			);
 
-			return { results: allAttachments, error: undefined };
+			return {
+				results: allAttachments,
+				error: undefined,
+			};
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
 			return { results: [], error };
