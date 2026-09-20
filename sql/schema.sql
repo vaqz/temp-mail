@@ -21,3 +21,17 @@ CREATE TABLE IF NOT EXISTS attachments (
     created_at INTEGER NOT NULL,
     FOREIGN KEY (email_id) REFERENCES emails (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS email_visibility_rules (
+    id TEXT PRIMARY KEY,
+    sender_pattern TEXT,
+    subject_pattern TEXT,
+    action TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_visibility_rules_sender
+ON email_visibility_rules(sender_pattern);
+
+CREATE INDEX IF NOT EXISTS idx_visibility_rules_subject
+ON email_visibility_rules(subject_pattern);
