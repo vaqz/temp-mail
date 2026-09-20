@@ -8,8 +8,8 @@ export async function insertEmail(db: D1Database, emailData: Email) {
 	try {
 		const { success, error, meta } = await db
 			.prepare(
-				`INSERT INTO emails (id, from_address, to_address, subject, received_at, html_content, text_content, has_attachments, attachment_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO emails (id, from_address, to_address, subject, received_at, html_content, text_content, has_attachments, attachment_count, is_public)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
 				emailData.id,
@@ -21,6 +21,7 @@ export async function insertEmail(db: D1Database, emailData: Email) {
 				emailData.text_content,
 				emailData.has_attachments,
 				emailData.attachment_count,
+				emailData.is_public,
 			)
 			.run();
 		return { success, error, meta };
@@ -42,7 +43,7 @@ export async function getEmailsByRecipient(
 	try {
 		const { results } = await db
 			.prepare(
-				`SELECT id, from_address, to_address, subject, received_at, has_attachments, attachment_count
+				`SELECT id, from_address, to_address, subject, received_at, has_attachments, attachment_count, is_public
          FROM emails
          WHERE to_address = ?
          ORDER BY received_at DESC
@@ -55,6 +56,7 @@ export async function getEmailsByRecipient(
 		const convertedResults = results.map((row: any) => ({
 			...row,
 			has_attachments: Boolean(row.has_attachments),
+			is_public: Boolean(row.is_public),
 		}));
 
 		return { results: convertedResults as EmailSummary[], error: undefined };
@@ -76,6 +78,7 @@ export async function getEmailById(db: D1Database, emailId: string) {
 			const convertedResult = {
 				...emailResult,
 				has_attachments: Boolean(emailResult.has_attachments),
+				is_public: Boolean(emailResult.is_public),
 			};
 			return { result: convertedResult as Email, error: undefined };
 		}
