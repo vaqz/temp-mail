@@ -66,10 +66,11 @@ export class DatabaseService {
 
 			if (results[0]) {
 				// Convert integer boolean values to actual booleans
-				const email = {
-					...results[0],
-					has_attachments: Boolean(results[0].has_attachments),
-				};
+			const email = {
+				...results[0],
+				has_attachments: Boolean(results[0].has_attachments),
+				is_public: Boolean(results[0].is_public),
+			};
 				return { result: email as Email, error };
 			}
 
