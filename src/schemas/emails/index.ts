@@ -81,6 +81,10 @@ export const emailSchema = z
 			description: "The number of attachments in the email.",
 			example: 2,
 		}),
+		is_public: z.boolean().default(false).openapi({
+		description: "Whether the email is publicly visible.",
+		example: false,
+		}),
 	})
 	.openapi("Email");
 
@@ -113,6 +117,10 @@ export const emailSummarySchema = z
 		attachment_count: z.number().default(0).openapi({
 			description: "The number of attachments in the email.",
 			example: 2,
+		}),
+		is_public: z.boolean().default(false).openapi({
+		description: "Whether the email is publicly visible.",
+		example: false,
 		}),
 	})
 	.openapi("EmailSummary");
