@@ -98,16 +98,46 @@ emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 	}
 });
 
-// DELETE /emails/{emailAddress}
-//
-// Public deletion is intentionally disabled for now.
-// We will later move deletion behind admin authentication.
+// DELETE /inbox/{emailId}
+// Public users may delete their own visible (public) email messages.
+// Private emails remain protected.
 // @ts-ignore - OpenAPI route handler type mismatch with error response status codes
-emailRoutes.openapi(deleteEmailsRoute, async (c) => {
-	return c.json(
-		ERR("Email deletion is not available", "NotFound"),
-		404,
-	);
+emailRoutes.openapi(deleteEmailRoute, async (c) => {
+	const { emailId } = c.req.valid("param");
+
+	try {
+		// Only allow deletion of emails that are publicly visible.
+		const email = await c.env.D1
+			.prepare(
+				`SELECT id
+				 FROM emails
+				 WHERE id = ?
+				   AND is_public = 1`,
+			)
+			.bind(emailId)
+			.first();
+
+		if (!email) {
+			return c.json(ERR("Email not found", "NotFound"), 404);
+		}
+
+		const { success, error } = await c.env.D1
+			.prepare(`DELETE FROM emails WHERE id = ? AND is_public = 1`)
+			.bind(emailId)
+			.run();
+
+		if (!success) {
+			return c.json(
+				ERR(error?.message || "Unable to delete email", "D1Error"),
+				500,
+			);
+		}
+
+		return c.json(OK({ deleted: true }));
+	} catch (e: unknown) {
+		const error = e instanceof Error ? e : new Error(String(e));
+		return c.json(ERR(error.message, "D1Error"), 500);
+	}
 });
 
 // GET /inbox/{emailId}
