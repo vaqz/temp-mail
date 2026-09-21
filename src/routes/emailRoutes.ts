@@ -30,6 +30,7 @@ emailRoutes.openapi(getEmailsRoute, async (c) => {
 	const { limit, offset } = c.req.valid("query");
 
 	const domainValidation = validateEmailDomain(emailAddress);
+
 	if (!domainValidation.valid) {
 		return c.json(domainValidation.error, 404);
 	}
@@ -55,7 +56,6 @@ emailRoutes.openapi(getEmailsRoute, async (c) => {
 			.bind(emailAddress, limit, offset)
 			.all();
 
-		// Convert SQLite integer booleans to proper booleans
 		const convertedResults = results.map((row: any) => ({
 			...row,
 			has_attachments: Boolean(row.has_attachments),
@@ -76,6 +76,7 @@ emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 	const { emailAddress } = c.req.valid("param");
 
 	const domainValidation = validateEmailDomain(emailAddress);
+
 	if (!domainValidation.valid) {
 		return c.json(domainValidation.error, 404);
 	}
@@ -99,14 +100,14 @@ emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 });
 
 // DELETE /inbox/{emailId}
-// Public users may delete their own visible (public) email messages.
+// Public users may delete a publicly visible email.
 // Private emails remain protected.
 // @ts-ignore - OpenAPI route handler type mismatch with error response status codes
 emailRoutes.openapi(deleteEmailRoute, async (c) => {
 	const { emailId } = c.req.valid("param");
 
 	try {
-		// Only allow deletion of emails that are publicly visible.
+		// First verify that the email exists and is publicly visible.
 		const email = await c.env.D1
 			.prepare(
 				`SELECT id
@@ -121,14 +122,22 @@ emailRoutes.openapi(deleteEmailRoute, async (c) => {
 			return c.json(ERR("Email not found", "NotFound"), 404);
 		}
 
+		// Delete only publicly visible emails.
 		const { success, error } = await c.env.D1
-			.prepare(`DELETE FROM emails WHERE id = ? AND is_public = 1`)
+			.prepare(
+				`DELETE FROM emails
+				 WHERE id = ?
+				   AND is_public = 1`,
+			)
 			.bind(emailId)
 			.run();
 
 		if (!success) {
 			return c.json(
-				ERR(error?.message || "Unable to delete email", "D1Error"),
+				ERR(
+					error?.message || "Unable to delete email",
+					"D1Error",
+				),
 				500,
 			);
 		}
@@ -141,33 +150,40 @@ emailRoutes.openapi(deleteEmailRoute, async (c) => {
 });
 
 // GET /inbox/{emailId}
-// Only publicly visible emails may be opened
+// Only publicly visible emails may be opened.
 // @ts-ignore - OpenAPI route handler type mismatch with error response status codes
 emailRoutes.openapi(getEmailRoute, async (c) => {
 	const { emailId } = c.req.valid("param");
 
 	const dbService = createDatabaseService(c.env.D1);
-	const { result, error } = await dbService.getEmailById(emailId);
+
+	const { result, error } =
+		await dbService.getEmailById(emailId);
 
 	if (error) {
 		return c.json(ERR(error.message, "D1Error"), 500);
 	}
 
 	if (!result || result.is_public !== true) {
-		return c.json(ERR("Email not found", "NotFound"), 404);
+		return c.json(
+			ERR("Email not found", "NotFound"),
+			404,
+		);
 	}
 
 	return c.json(OK(result));
 });
 
-// DELETE /inbox/{emailId}
-//
-// Public deletion is intentionally disabled for now.
-// We will later move deletion behind admin authentication.
+// DELETE /emails/{emailAddress}
+// Public mailbox-wide deletion remains disabled.
+// Individual public email deletion is allowed above.
 // @ts-ignore - OpenAPI route handler type mismatch with error response status codes
-emailRoutes.openapi(deleteEmailRoute, async (c) => {
+emailRoutes.openapi(deleteEmailsRoute, async (c) => {
 	return c.json(
-		ERR("Email deletion is not available", "NotFound"),
+		ERR(
+			"Mailbox-wide deletion is not available",
+			"NotFound",
+		),
 		404,
 	);
 });
@@ -175,11 +191,18 @@ emailRoutes.openapi(deleteEmailRoute, async (c) => {
 // GET /domains
 // Only expose your own public domain.
 // Other domains from the original repository are intentionally hidden.
+// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
 emailRoutes.openapi(getDomainsRoute, async (c) => {
-	c.header("Cache-Control", `public, max-age=${CACHE.DOMAINS_TTL}`);
+	c.header(
+		"Cache-Control",
+		`public, max-age=${CACHE.DOMAINS_TTL}`,
+	);
+
 	c.header("ETag", `"domains-1"`);
 
-	return c.json(OK(["vaqzmobiz.com"]));
+	return c.json(
+		OK(["vaqzmobiz.com"]),
+	);
 });
 
 export default emailRoutes;
