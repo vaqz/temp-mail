@@ -27,6 +27,19 @@ function escapeHtml(value: unknown): string {
    ADMIN DASHBOARD
 ========================================================= */
 
+// Allow the admin subdomain root to serve the dashboard.
+// https://admin.vaqzmobiz.com/
+adminRoutes.get("/", async (c) => {
+	const url = new URL(c.req.url);
+	url.pathname = "/admin";
+
+	return adminRoutes.fetch(
+		new Request(url.toString(), c.req.raw),
+		c.env,
+		c.executionCtx,
+	);
+});
+
 adminRoutes.get("/admin", async (c) => {
 	const html = `<!DOCTYPE html>
 <html lang="en">
