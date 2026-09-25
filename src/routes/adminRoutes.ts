@@ -14,14 +14,6 @@ function isAuthorized(c: any): boolean {
 	return auth === `Bearer ${token}`;
 }
 
-function escapeHtml(value: unknown): string {
-	return String(value ?? "")
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
-}
 
 /* =========================================================
    ADMIN DASHBOARD
@@ -38,16 +30,22 @@ adminRoutes.get("/", async (c) => {
 	);
 });
 
+
 adminRoutes.get("/admin", async (c) => {
 	const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+
 <title>Vaqz Mobiz Mail Admin</title>
 
 <style>
-*{box-sizing:border-box}
+
+*{
+	box-sizing:border-box;
+}
 
 body{
 	margin:0;
@@ -71,7 +69,8 @@ body{
 	box-shadow:0 2px 8px rgba(0,0,0,.04);
 }
 
-h1,h2{
+h1,
+h2{
 	margin-top:0;
 }
 
@@ -80,7 +79,8 @@ h1,h2{
 	margin:80px auto;
 }
 
-input,button{
+input,
+button{
 	font:inherit;
 }
 
@@ -166,7 +166,8 @@ table{
 	font-size:14px;
 }
 
-th,td{
+th,
+td{
 	padding:11px 9px;
 	border-bottom:1px solid #edf0f5;
 	text-align:left;
@@ -306,7 +307,14 @@ th{
 	margin-top:7px;
 }
 
+.rule-grid{
+	display:grid;
+	grid-template-columns:1fr 1fr;
+	gap:10px;
+}
+
 @media(max-width:700px){
+
 	.container{
 		padding:12px;
 	}
@@ -326,17 +334,32 @@ th{
 	.email-viewer{
 		height:400px;
 	}
+
+	.rule-grid{
+		grid-template-columns:1fr;
+	}
+
 }
+
 </style>
+
 </head>
 
 <body>
 
-<div id="loginScreen" class="login card">
-	<h1>Vaqz Mobiz Mail Admin</h1>
-	<p class="muted">Administrator access</p>
 
-	<div id="loginMessage" class="message"></div>
+<div id="loginScreen" class="login card">
+
+	<h1>Vaqz Mobiz Mail Admin</h1>
+
+	<p class="muted">
+		Administrator access
+	</p>
+
+	<div
+		id="loginMessage"
+		class="message"
+	></div>
 
 	<input
 		id="tokenInput"
@@ -346,11 +369,19 @@ th{
 
 	<br><br>
 
-	<button id="loginBtn">Login</button>
+	<button id="loginBtn">
+		Login
+	</button>
+
 </div>
 
 
-<div id="app" class="container" style="display:none">
+<div
+	id="app"
+	class="container"
+	style="display:none"
+>
+
 
 	<div class="card">
 
@@ -360,12 +391,17 @@ th{
 		>
 
 			<div>
-				<h1>Mail Administration</h1>
+
+				<h1>
+					Mail Administration
+				</h1>
 
 				<div class="muted">
 					Manage public email visibility and automatic rules.
 				</div>
+
 			</div>
+
 
 			<div class="actions">
 
@@ -394,6 +430,7 @@ th{
 
 		</div>
 
+
 		<div
 			id="syncStatus"
 			class="sync-status"
@@ -402,24 +439,50 @@ th{
 	</div>
 
 
-	<div id="globalMessage" class="message"></div>
+	<div
+		id="globalMessage"
+		class="message"
+	></div>
 
 
 	<div class="stats">
 
 		<div class="stat">
-			<span class="muted">Total Emails</span>
-			<strong id="totalCount">0</strong>
+
+			<span class="muted">
+				Total Emails
+			</span>
+
+			<strong id="totalCount">
+				0
+			</strong>
+
 		</div>
 
-		<div class="stat">
-			<span class="muted">Public</span>
-			<strong id="publicCount">0</strong>
-		</div>
 
 		<div class="stat">
-			<span class="muted">Private</span>
-			<strong id="privateCount">0</strong>
+
+			<span class="muted">
+				Public
+			</span>
+
+			<strong id="publicCount">
+				0
+			</strong>
+
+		</div>
+
+
+		<div class="stat">
+
+			<span class="muted">
+				Private
+			</span>
+
+			<strong id="privateCount">
+				0
+			</strong>
+
 		</div>
 
 	</div>
@@ -427,25 +490,26 @@ th{
 
 	<div class="card">
 
-		<h2>Automatic Public Rules</h2>
+		<h2>
+			Automatic Public Rules
+		</h2>
 
 		<p class="muted">
-			Only emails matching the configured sender, recipient, and subject
-			conditions will automatically become public.
-			Leave Recipient blank to apply the rule to all matching mailboxes.
+			Only emails matching the configured sender, recipient,
+			and subject conditions will automatically become public.
+			Leave Recipient blank to apply the rule to all mailboxes.
 		</p>
 
 
 		<div
 			class="card"
-			style="background:#f8fafc;margin:15px 0 15px 0;box-shadow:none"
+			style="background:#f8fafc;margin:15px 0;box-shadow:none"
 		>
 
-			<div
-				style="display:grid;grid-template-columns:1fr 1fr;gap:10px"
-			>
+			<div class="rule-grid">
 
 				<div>
+
 					<label class="muted">
 						Sender
 					</label>
@@ -454,10 +518,12 @@ th{
 						id="newRuleSender"
 						placeholder="sender@example.com"
 					>
+
 				</div>
 
 
 				<div>
+
 					<label class="muted">
 						Recipient
 					</label>
@@ -466,6 +532,7 @@ th{
 						id="newRuleRecipient"
 						placeholder="mailbox@vaqzmobiz.com"
 					>
+
 				</div>
 
 
@@ -497,9 +564,11 @@ th{
 
 
 		<div id="rulesList">
+
 			<div class="muted">
 				Loading rules...
 			</div>
+
 		</div>
 
 	</div>
@@ -507,23 +576,15 @@ th{
 
 	<div class="card">
 
-		<div
-			class="row"
-			style="justify-content:space-between;flex-wrap:wrap"
-		>
+		<h2>
+			Emails
+		</h2>
 
-			<div>
-
-				<h2>Emails</h2>
-
-				<div class="muted">
-					Public emails are visible through the public mailbox API.
-				</div>
-
-			</div>
-
+		<div class="muted">
+			Public emails are visible through the public mailbox API.
 		</div>
 
+		<br>
 
 		<div class="table-wrap">
 
@@ -532,25 +593,47 @@ th{
 				<thead>
 
 					<tr>
-						<th>From</th>
-						<th>To</th>
-						<th>Subject</th>
-						<th>Received</th>
-						<th>Visibility</th>
-						<th>Actions</th>
+
+						<th>
+							From
+						</th>
+
+						<th>
+							To
+						</th>
+
+						<th>
+							Subject
+						</th>
+
+						<th>
+							Received
+						</th>
+
+						<th>
+							Visibility
+						</th>
+
+						<th>
+							Actions
+						</th>
+
 					</tr>
 
 				</thead>
 
+
 				<tbody id="emailsBody">
 
 					<tr>
+
 						<td
 							colspan="6"
 							class="muted"
 						>
 							Loading...
 						</td>
+
 					</tr>
 
 				</tbody>
@@ -566,11 +649,16 @@ th{
 
 <!-- RULE MODAL -->
 
-<div id="ruleModal" class="modal">
+<div
+	id="ruleModal"
+	class="modal"
+>
 
 	<div class="modal-box">
 
-		<h2>Make Public + Future Similar</h2>
+		<h2>
+			Make Public + Future Similar
+		</h2>
 
 		<p class="muted">
 			This email will become public, and future emails matching
@@ -621,7 +709,6 @@ th{
 			<b>special offer</b>,
 			or
 			<b>newsletter</b>.
-			Avoid temporary values such as OTP numbers.
 		</p>
 
 
@@ -650,20 +737,23 @@ th{
 
 <!-- EMAIL VIEWER MODAL -->
 
-<div id="emailModal" class="modal">
+<div
+	id="emailModal"
+	class="modal"
+>
 
 	<div class="modal-box">
 
-		<h2>Email</h2>
+		<h2>
+			Email
+		</h2>
 
 		<div
 			id="emailMeta"
 			class="email-meta"
 		></div>
 
-		<div
-			id="emailContent"
-		></div>
+		<div id="emailContent"></div>
 
 		<br>
 
@@ -690,28 +780,55 @@ let selectedEmailId = "";
 
 
 /* =========================================================
-   GENERAL UI
+   UI HELPERS
 ========================================================= */
 
-function showMessage(text, type="ok"){
-	const el = document.getElementById("globalMessage");
+function showMessage(text, type){
 
-	el.textContent = text;
+	const el =
+		document.getElementById("globalMessage");
 
-	el.className = "message " + type;
+	el.textContent =
+		String(text || "");
 
-	setTimeout(() => {
+	el.className =
+		"message " +
+		(type || "ok");
+
+	setTimeout(function(){
+
 		el.className = "message";
+
 	}, 4000);
 }
 
 
 function showLoginMessage(text){
-	const el = document.getElementById("loginMessage");
 
-	el.textContent = text;
+	const el =
+		document.getElementById("loginMessage");
 
-	el.className = "message error";
+	el.textContent =
+		String(text || "");
+
+	el.className =
+		"message error";
+}
+
+
+/* =========================================================
+   HTML ESCAPING
+   No regular expressions are used here.
+========================================================= */
+
+function escapeHtml(value){
+
+	return String(value == null ? "" : value)
+		.split("&").join("&amp;")
+		.split("<").join("&lt;")
+		.split(">").join("&gt;")
+		.split('"').join("&quot;")
+		.split("'").join("&#039;");
 }
 
 
@@ -719,37 +836,71 @@ function showLoginMessage(text){
    API
 ========================================================= */
 
-async function api(path, options={}){
-	const headers = Object.assign(
-		{
-			"Authorization":"Bearer " + token
-		},
-		options.headers || {}
-	);
+async function api(path, options){
 
-	const response = await fetch(
-		path,
-		Object.assign({}, options, {headers})
-	);
+	const requestOptions =
+		options || {};
+
+	const headers =
+		Object.assign(
+			{
+				"Authorization":
+					"Bearer " + token
+			},
+			requestOptions.headers || {}
+		);
+
+	const response =
+		await fetch(
+			path,
+			Object.assign(
+				{},
+				requestOptions,
+				{
+					headers:headers
+				}
+			)
+		);
 
 	let data = null;
 
 	try{
-		data = await response.json();
-	}catch(e){}
 
-	if(response.status === 401){
-		logout();
-		throw new Error("Unauthorized");
+		data =
+			await response.json();
+
+	}catch(error){
+
+		data = null;
 	}
 
-	if(!response.ok){
+
+	if(response.status === 401){
+
+		logout();
+
 		throw new Error(
-			data?.error?.message ||
-			data?.message ||
+			"Unauthorized"
+		);
+	}
+
+
+	if(!response.ok){
+
+		throw new Error(
+			(
+				data &&
+				data.error &&
+				data.error.message
+			) ||
+			(
+				data &&
+				data.message
+			) ||
 			"Request failed"
 		);
 	}
+
 
 	return data;
 }
@@ -761,13 +912,17 @@ async function api(path, options={}){
 
 async function login(){
 
+	const input =
+		document.getElementById(
+			"tokenInput"
+		);
+
 	const value =
-		document
-			.getElementById("tokenInput")
-			.value
-			.trim();
+		input.value.trim();
+
 
 	if(!value){
+
 		showLoginMessage(
 			"Please enter the admin token."
 		);
@@ -775,21 +930,29 @@ async function login(){
 		return;
 	}
 
+
 	token = value;
+
 
 	try{
 
-		await api("/admin/emails");
+		await api(
+			"/admin/emails"
+		);
+
 
 		document
 			.getElementById("loginScreen")
 			.style.display = "none";
 
+
 		document
 			.getElementById("app")
 			.style.display = "block";
 
+
 		await refreshAll();
+
 
 	}catch(error){
 
@@ -832,30 +995,40 @@ function formatDate(value){
 		value === undefined ||
 		value === ""
 	){
+
 		return "-";
 	}
 
-	const numeric = Number(value);
+
+	const numeric =
+		Number(value);
+
 
 	if(!Number.isFinite(numeric)){
+
 		return String(value);
 	}
 
-	/*
-	 * Email received_at uses Unix seconds.
-	 * Rule created_at currently uses milliseconds.
-	 * This handles both formats.
-	 */
+
 	const milliseconds =
 		numeric < 100000000000
 			? numeric * 1000
 			: numeric;
 
-	const date = new Date(milliseconds);
 
-	if(Number.isNaN(date.getTime())){
+	const date =
+		new Date(milliseconds);
+
+
+	if(
+		Number.isNaN(
+			date.getTime()
+		)
+	){
+
 		return String(value);
 	}
+
 
 	return date.toLocaleString();
 }
@@ -868,185 +1041,341 @@ function formatDate(value){
 async function loadEmails(){
 
 	const data =
-		await api("/admin/emails");
+		await api(
+			"/admin/emails"
+		);
+
 
 	const emails =
-		data?.data ||
+		(
+			data &&
+			data.data
+		) ||
 		data ||
 		[];
 
-	const total = emails.length;
 
 	const publicEmails =
 		emails.filter(
-			e => e.is_public === true
+			function(email){
+				return email.is_public === true;
+			}
 		);
+
 
 	const privateEmails =
 		emails.filter(
-			e => e.is_public !== true
+			function(email){
+				return email.is_public !== true;
+			}
 		);
+
 
 	document
 		.getElementById("totalCount")
-		.textContent = total;
+		.textContent =
+			String(emails.length);
+
 
 	document
 		.getElementById("publicCount")
-		.textContent = publicEmails.length;
+		.textContent =
+			String(publicEmails.length);
+
 
 	document
 		.getElementById("privateCount")
-		.textContent = privateEmails.length;
+		.textContent =
+			String(privateEmails.length);
+
 
 	const body =
-		document.getElementById("emailsBody");
+		document.getElementById(
+			"emailsBody"
+		);
+
+
+	body.innerHTML = "";
+
 
 	if(!emails.length){
 
-		body.innerHTML =
-			'<tr><td colspan="6" class="muted">No emails found.</td></tr>';
+		const row =
+			document.createElement("tr");
+
+		const cell =
+			document.createElement("td");
+
+		cell.colSpan = 6;
+
+		cell.className =
+			"muted";
+
+		cell.textContent =
+			"No emails found.";
+
+		row.appendChild(cell);
+
+		body.appendChild(row);
 
 		return;
 	}
 
 
-	body.innerHTML = emails.map(email => {
+	emails.forEach(
+		function(email){
 
-		const id =
-			escapeForHtml(email.id);
-
-		const from =
-			escapeForHtml(email.from_address);
-
-		const to =
-			escapeForHtml(email.to_address);
-
-		const subject =
-			escapeForHtml(
-				email.subject ||
-				"(No subject)"
-			);
-
-		const received =
-			escapeForHtml(
-				formatDate(email.received_at)
-			);
+			const row =
+				document.createElement("tr");
 
 
-		const visibility =
-			email.is_public
-				? '<span class="badge public">PUBLIC</span>'
-				: '<span class="badge private">PRIVATE</span>';
+			const fromCell =
+				document.createElement("td");
 
-
-		let actions = "";
-
-
-		actions +=
-			'<button class="small" onclick="openEmail(\\'' +
-			id +
-			'\\')">Read</button>';
-
-
-		if(email.is_public){
-
-			actions +=
-				'<button class="small warning" onclick="makePrivate(\\'' +
-				id +
-				'\\')">Make Private</button>';
-
-		}else{
-
-			actions +=
-				'<button class="small success" onclick="makePublicOnly(\\'' +
-				id +
-				'\\')">Make Public</button>';
-
-
-			actions +=
-				'<button class="small" onclick="openRuleModal(\\'' +
-				id +
-				'\\', \\'' +
-				escapeForJs(
+			fromCell.textContent =
+				String(
 					email.from_address || ""
-				) +
-				'\\', \\'' +
-				escapeForJs(
+				);
+
+
+			const toCell =
+				document.createElement("td");
+
+			toCell.textContent =
+				String(
 					email.to_address || ""
-				) +
-				'\\', \\'' +
-				escapeForJs(
-					email.subject || ""
-				) +
-				'\\')">Public + Future Similar</button>';
+				);
+
+
+			const subjectCell =
+				document.createElement("td");
+
+			subjectCell.textContent =
+				String(
+					email.subject ||
+					"(No subject)"
+				);
+
+
+			const receivedCell =
+				document.createElement("td");
+
+			receivedCell.textContent =
+				formatDate(
+					email.received_at
+				);
+
+
+			const visibilityCell =
+				document.createElement("td");
+
+
+			const badge =
+				document.createElement("span");
+
+			badge.className =
+				email.is_public
+					? "badge public"
+					: "badge private";
+
+			badge.textContent =
+				email.is_public
+					? "PUBLIC"
+					: "PRIVATE";
+
+
+			visibilityCell.appendChild(
+				badge
+			);
+
+
+			const actionsCell =
+				document.createElement("td");
+
+
+			const actions =
+				document.createElement("div");
+
+			actions.className =
+				"actions";
+
+
+			/* READ */
+
+			const readButton =
+				document.createElement("button");
+
+			readButton.className =
+				"small";
+
+			readButton.textContent =
+				"Read";
+
+			readButton.addEventListener(
+				"click",
+				function(){
+
+					openEmail(
+						email.id
+					);
+
+				}
+			);
+
+			actions.appendChild(
+				readButton
+			);
+
+
+			/* PUBLIC / PRIVATE */
+
+			if(email.is_public){
+
+				const privateButton =
+					document.createElement("button");
+
+				privateButton.className =
+					"small warning";
+
+				privateButton.textContent =
+					"Make Private";
+
+				privateButton.addEventListener(
+					"click",
+					function(){
+
+						makePrivate(
+							email.id
+						);
+
+					}
+				);
+
+				actions.appendChild(
+					privateButton
+				);
+
+
+			}else{
+
+				const publicButton =
+					document.createElement("button");
+
+				publicButton.className =
+					"small success";
+
+				publicButton.textContent =
+					"Make Public";
+
+				publicButton.addEventListener(
+					"click",
+					function(){
+
+						makePublicOnly(
+							email.id
+						);
+
+					}
+				);
+
+				actions.appendChild(
+					publicButton
+				);
+
+
+				const futureButton =
+					document.createElement("button");
+
+				futureButton.className =
+					"small";
+
+				futureButton.textContent =
+					"Public + Future Similar";
+
+				futureButton.addEventListener(
+					"click",
+					function(){
+
+						openRuleModal(
+							email.id,
+							email.from_address || "",
+							email.to_address || "",
+							email.subject || ""
+						);
+
+					}
+				);
+
+				actions.appendChild(
+					futureButton
+				);
+
+			}
+
+
+			/* DELETE */
+
+			const deleteButton =
+				document.createElement("button");
+
+			deleteButton.className =
+				"small danger";
+
+			deleteButton.textContent =
+				"Delete";
+
+			deleteButton.addEventListener(
+				"click",
+				function(){
+
+					deleteEmail(
+						email.id
+					);
+
+				}
+			);
+
+			actions.appendChild(
+				deleteButton
+			);
+
+
+			actionsCell.appendChild(
+				actions
+			);
+
+
+			row.appendChild(
+				fromCell
+			);
+
+			row.appendChild(
+				toCell
+			);
+
+			row.appendChild(
+				subjectCell
+			);
+
+			row.appendChild(
+				receivedCell
+			);
+
+			row.appendChild(
+				visibilityCell
+			);
+
+			row.appendChild(
+				actionsCell
+			);
+
+
+			body.appendChild(
+				row
+			);
+
 		}
-
-
-		actions +=
-			'<button class="small danger" onclick="deleteEmail(\\'' +
-			id +
-			'\\')">Delete</button>';
-
-
-		return (
-			'<tr>' +
-
-			'<td>' +
-			from +
-			'</td>' +
-
-			'<td>' +
-			to +
-			'</td>' +
-
-			'<td>' +
-			subject +
-			'</td>' +
-
-			'<td>' +
-			received +
-			'</td>' +
-
-			'<td>' +
-			visibility +
-			'</td>' +
-
-			'<td>' +
-			'<div class="actions">' +
-			actions +
-			'</div>' +
-			'</td>' +
-
-			'</tr>'
-		);
-
-	}).join("");
-}
-
-
-/* =========================================================
-   ESCAPING
-========================================================= */
-
-function escapeForHtml(value){
-
-	return String(value ?? "")
-		.replace(/&/g,"&amp;")
-		.replace(/</g,"&lt;")
-		.replace(/>/g,"&gt;")
-		.replace(/"/g,"&quot;")
-		.replace(/'/g,"&#039;");
-}
-
-
-function escapeForJs(value){
-
-	return String(value ?? "")
-		.replace(/\\\\/g,"\\\\\\\\")
-		.replace(/'/g,"\\\\'")
-		.replace(/\n/g," ")
-		.replace(/\r/g," ");
+	);
 }
 
 
@@ -1064,54 +1393,94 @@ async function openEmail(id){
 				encodeURIComponent(id)
 			);
 
+
 		const email =
-			data?.data ||
+			(
+				data &&
+				data.data
+			) ||
 			data;
 
+
 		if(!email){
+
 			throw new Error(
 				"Email not found."
 			);
 		}
 
 
-		document.getElementById(
-			"emailMeta"
-		).innerHTML =
-			'<div><b>From:</b> ' +
-			escapeForHtml(
+		const meta =
+			document.getElementById(
+				"emailMeta"
+			);
+
+
+		meta.innerHTML = "";
+
+
+		const fields = [
+			[
+				"From:",
 				email.from_address
-			) +
-			'</div>' +
-
-			'<div><b>To:</b> ' +
-			escapeForHtml(
+			],
+			[
+				"To:",
 				email.to_address
-			) +
-			'</div>' +
-
-			'<div><b>Subject:</b> ' +
-			escapeForHtml(
+			],
+			[
+				"Subject:",
 				email.subject ||
 				"(No subject)"
-			) +
-			'</div>' +
-
-			'<div><b>Received:</b> ' +
-			escapeForHtml(
+			],
+			[
+				"Received:",
 				formatDate(
 					email.received_at
 				)
-			) +
-			'</div>' +
-
-			'<div><b>Attachments:</b> ' +
-			escapeForHtml(
+			],
+			[
+				"Attachments:",
 				String(
 					email.attachment_count || 0
 				)
-			) +
-			'</div>';
+			]
+		];
+
+
+		fields.forEach(
+			function(field){
+
+				const div =
+					document.createElement("div");
+
+				const strong =
+					document.createElement("b");
+
+				strong.textContent =
+					field[0] + " ";
+
+				div.appendChild(
+					strong
+				);
+
+				const value =
+					document.createTextNode(
+						String(
+							field[1] || ""
+						)
+					);
+
+				div.appendChild(
+					value
+				);
+
+				meta.appendChild(
+					div
+				);
+
+			}
+		);
 
 
 		const content =
@@ -1119,12 +1488,15 @@ async function openEmail(id){
 				"emailContent"
 			);
 
+
 		content.innerHTML = "";
 
 
 		if(
 			email.html_content &&
-			String(email.html_content).trim()
+			String(
+				email.html_content
+			).trim()
 		){
 
 			const iframe =
@@ -1132,35 +1504,39 @@ async function openEmail(id){
 					"iframe"
 				);
 
+
 			iframe.className =
 				"email-viewer";
 
-			/*
-			 * Sandbox prevents scripts inside
-			 * the email from executing.
-			 */
+
 			iframe.setAttribute(
 				"sandbox",
 				""
 			);
+
 
 			iframe.setAttribute(
 				"referrerpolicy",
 				"no-referrer"
 			);
 
+
 			iframe.srcdoc =
 				String(
 					email.html_content
 				);
 
+
 			content.appendChild(
 				iframe
 			);
 
+
 		}else if(
 			email.text_content &&
-			String(email.text_content).trim()
+			String(
+				email.text_content
+			).trim()
 		){
 
 			const pre =
@@ -1168,15 +1544,21 @@ async function openEmail(id){
 					"pre"
 				);
 
+
 			pre.className =
 				"email-text";
+
 
 			pre.textContent =
 				String(
 					email.text_content
 				);
 
-			content.appendChild(pre);
+
+			content.appendChild(
+				pre
+			);
+
 
 		}else{
 
@@ -1185,11 +1567,14 @@ async function openEmail(id){
 					"div"
 				);
 
+
 			empty.className =
 				"muted";
 
+
 			empty.textContent =
 				"No message content available.";
+
 
 			content.appendChild(
 				empty
@@ -1200,6 +1585,7 @@ async function openEmail(id){
 		document
 			.getElementById("emailModal")
 			.classList.add("show");
+
 
 	}catch(error){
 
@@ -1218,13 +1604,15 @@ function closeEmail(){
 		.getElementById("emailModal")
 		.classList.remove("show");
 
-	document.getElementById(
-		"emailContent"
-	).innerHTML = "";
 
-	document.getElementById(
-		"emailMeta"
-	).innerHTML = "";
+	document
+		.getElementById("emailContent")
+		.innerHTML = "";
+
+
+	document
+		.getElementById("emailMeta")
+		.innerHTML = "";
 }
 
 
@@ -1242,21 +1630,26 @@ async function makePublicOnly(id){
 			"/visibility",
 			{
 				method:"PATCH",
+
 				headers:{
 					"Content-Type":
 						"application/json"
 				},
+
 				body:JSON.stringify({
 					is_public:true
 				})
 			}
 		);
 
+
 		showMessage(
 			"Email is now public."
 		);
 
+
 		await loadEmails();
+
 
 	}catch(error){
 
@@ -1278,21 +1671,26 @@ async function makePrivate(id){
 			"/visibility",
 			{
 				method:"PATCH",
+
 				headers:{
 					"Content-Type":
 						"application/json"
 				},
+
 				body:JSON.stringify({
 					is_public:false
 				})
 			}
 		);
 
+
 		showMessage(
 			"Email is now private."
 		);
 
+
 		await loadEmails();
+
 
 	}catch(error){
 
@@ -1315,23 +1713,32 @@ function openRuleModal(
 	subject
 ){
 
-	selectedEmailId = id;
+	selectedEmailId =
+		String(id || "");
+
 
 	document.getElementById(
 		"modalSender"
-	).value = sender;
+	).value =
+		String(sender || "");
+
 
 	document.getElementById(
 		"modalRecipient"
-	).value = recipient;
+	).value =
+		String(recipient || "");
+
 
 	document.getElementById(
 		"modalSubject"
-	).value = subject;
+	).value =
+		String(subject || "");
+
 
 	document
 		.getElementById("ruleModal")
 		.classList.add("show");
+
 
 	document
 		.getElementById("modalSubject")
@@ -1342,6 +1749,7 @@ function openRuleModal(
 function closeRuleModal(){
 
 	selectedEmailId = "";
+
 
 	document
 		.getElementById("ruleModal")
@@ -1361,11 +1769,13 @@ async function confirmRule(){
 			.value
 			.trim();
 
+
 	const recipient =
 		document
 			.getElementById("modalRecipient")
 			.value
 			.trim();
+
 
 	const subjectPattern =
 		document
@@ -1391,9 +1801,6 @@ async function confirmRule(){
 
 	try{
 
-		/*
-		 * First make the selected email public.
-		 */
 		await api(
 			"/admin/emails/" +
 			encodeURIComponent(
@@ -1402,10 +1809,12 @@ async function confirmRule(){
 			"/visibility",
 			{
 				method:"PATCH",
+
 				headers:{
 					"Content-Type":
 						"application/json"
 				},
+
 				body:JSON.stringify({
 					is_public:true
 				})
@@ -1413,21 +1822,25 @@ async function confirmRule(){
 		);
 
 
-		/*
-		 * Then create a recipient-specific rule.
-		 */
 		await api(
 			"/admin/rules",
 			{
 				method:"POST",
+
 				headers:{
 					"Content-Type":
 						"application/json"
 				},
+
 				body:JSON.stringify({
-					sender_pattern:sender,
-					recipient_pattern:recipient,
-					subject_pattern:subjectPattern
+					sender_pattern:
+						sender,
+
+					recipient_pattern:
+						recipient,
+
+					subject_pattern:
+						subjectPattern
 				})
 			}
 		);
@@ -1435,11 +1848,14 @@ async function confirmRule(){
 
 		closeRuleModal();
 
+
 		showMessage(
 			"Email is public and the future-matching rule was created."
 		);
 
+
 		await refreshAll();
+
 
 	}catch(error){
 
@@ -1462,6 +1878,7 @@ async function deleteEmail(id){
 			"Delete this email permanently?"
 		)
 	){
+
 		return;
 	}
 
@@ -1476,11 +1893,14 @@ async function deleteEmail(id){
 			}
 		);
 
+
 		showMessage(
 			"Email deleted."
 		);
 
+
 		await loadEmails();
+
 
 	}catch(error){
 
@@ -1499,12 +1919,19 @@ async function deleteEmail(id){
 async function loadRules(){
 
 	const data =
-		await api("/admin/rules");
+		await api(
+			"/admin/rules"
+		);
+
 
 	const rules =
-		data?.data ||
+		(
+			data &&
+			data.data
+		) ||
 		data ||
 		[];
+
 
 	const container =
 		document.getElementById(
@@ -1512,68 +1939,152 @@ async function loadRules(){
 		);
 
 
+	container.innerHTML = "";
+
+
 	if(!rules.length){
 
-		container.innerHTML =
-			'<div class="muted">No automatic rules configured.</div>';
+		const empty =
+			document.createElement("div");
+
+		empty.className =
+			"muted";
+
+		empty.textContent =
+			"No automatic rules configured.";
+
+		container.appendChild(
+			empty
+		);
 
 		return;
 	}
 
 
-	container.innerHTML =
-		rules.map(rule => {
+	rules.forEach(
+		function(rule){
 
-			const recipient =
-				rule.recipient_pattern ||
-				"All mailboxes";
+			const box =
+				document.createElement("div");
+
+			box.className =
+				"rule";
 
 
-			return (
-				'<div class="rule">' +
+			const title =
+				document.createElement("strong");
 
-				'<strong>Public Rule</strong>' +
+			title.textContent =
+				"Public Rule";
 
-				'<div>' +
-				'<span class="muted">Sender:</span> ' +
-				escapeForHtml(
-					rule.sender_pattern
-				) +
-				'</div>' +
 
-				'<div>' +
-				'<span class="muted">Recipient:</span> ' +
-				escapeForHtml(
-					recipient
-				) +
-				'</div>' +
-
-				'<div>' +
-				'<span class="muted">Subject contains:</span> ' +
-				escapeForHtml(
-					rule.subject_pattern
-				) +
-				'</div>' +
-
-				'<div>' +
-				'<span class="muted">Created:</span> ' +
-				escapeForHtml(
-					formatDate(
-						rule.created_at
-					)
-				) +
-				'</div>' +
-
-				'<br>' +
-
-				'<button class="small danger" onclick="deleteRule(\\'' +
-				escapeForJs(rule.id) +
-				'\\')">Delete Rule</button>' +
-
-				'</div>'
+			box.appendChild(
+				title
 			);
 
-		}).join("");
+
+			const sender =
+				document.createElement("div");
+
+			sender.textContent =
+				"Sender: " +
+				String(
+					rule.sender_pattern || ""
+				);
+
+
+			box.appendChild(
+				sender
+			);
+
+
+			const recipient =
+				document.createElement("div");
+
+			recipient.textContent =
+				"Recipient: " +
+				String(
+					rule.recipient_pattern ||
+					"All mailboxes"
+				);
+
+
+			box.appendChild(
+				recipient
+			);
+
+
+			const subject =
+				document.createElement("div");
+
+			subject.textContent =
+				"Subject contains: " +
+				String(
+					rule.subject_pattern || ""
+				);
+
+
+			box.appendChild(
+				subject
+			);
+
+
+			const created =
+				document.createElement("div");
+
+			created.textContent =
+				"Created: " +
+				formatDate(
+					rule.created_at
+				);
+
+
+			box.appendChild(
+				created
+			);
+
+
+			const spacer =
+				document.createElement("br");
+
+			box.appendChild(
+				spacer
+			);
+
+
+			const deleteButton =
+				document.createElement("button");
+
+			deleteButton.className =
+				"small danger";
+
+			deleteButton.textContent =
+				"Delete Rule";
+
+
+			deleteButton.addEventListener(
+				"click",
+				function(){
+
+					deleteRule(
+						rule.id
+					);
+
+				}
+			);
+
+
+			box.appendChild(
+				deleteButton
+			);
+
+
+			container.appendChild(
+				box
+			);
+
+		}
+	);
 }
 
 
@@ -1589,11 +2100,13 @@ async function addRule(){
 			.value
 			.trim();
 
+
 	const recipient =
 		document
 			.getElementById("newRuleRecipient")
 			.value
 			.trim();
+
 
 	const subjectPattern =
 		document
@@ -1622,14 +2135,19 @@ async function addRule(){
 			"/admin/rules",
 			{
 				method:"POST",
+
 				headers:{
 					"Content-Type":
 						"application/json"
 				},
+
 				body:JSON.stringify({
-					sender_pattern:sender,
+					sender_pattern:
+						sender,
+
 					recipient_pattern:
 						recipient || null,
+
 					subject_pattern:
 						subjectPattern
 				})
@@ -1641,9 +2159,11 @@ async function addRule(){
 			"newRuleSender"
 		).value = "";
 
+
 		document.getElementById(
 			"newRuleRecipient"
 		).value = "";
+
 
 		document.getElementById(
 			"newRuleSubject"
@@ -1654,7 +2174,9 @@ async function addRule(){
 			"Automatic public rule added."
 		);
 
+
 		await loadRules();
+
 
 	}catch(error){
 
@@ -1677,6 +2199,7 @@ async function deleteRule(id){
 			"Delete this automatic public rule?"
 		)
 	){
+
 		return;
 	}
 
@@ -1691,11 +2214,14 @@ async function deleteRule(id){
 			}
 		);
 
+
 		showMessage(
 			"Rule deleted."
 		);
 
+
 		await loadRules();
+
 
 	}catch(error){
 
@@ -1718,6 +2244,7 @@ async function syncMailboxes(){
 			"syncBtn"
 		);
 
+
 	const status =
 		document.getElementById(
 			"syncStatus"
@@ -1728,6 +2255,7 @@ async function syncMailboxes(){
 
 	button.textContent =
 		"Syncing...";
+
 
 	status.textContent =
 		"Synchronizing mailbox accounts from Google Sheets...";
@@ -1745,8 +2273,12 @@ async function syncMailboxes(){
 
 
 		const sync =
-			result?.result ||
-			result;
+			(
+				result &&
+				result.result
+			) ||
+			result ||
+			{};
 
 
 		showMessage(
@@ -1758,19 +2290,27 @@ async function syncMailboxes(){
 			"Sync completed: " +
 			"created " +
 			String(
-				sync?.created ?? 0
+				sync.created == null
+					? 0
+					: sync.created
 			) +
 			", updated " +
 			String(
-				sync?.updated ?? 0
+				sync.updated == null
+					? 0
+					: sync.updated
 			) +
 			", disabled " +
 			String(
-				sync?.disabled ?? 0
+				sync.disabled == null
+					? 0
+					: sync.disabled
 			) +
 			", unchanged " +
 			String(
-				sync?.unchanged ?? 0
+				sync.unchanged == null
+					? 0
+					: sync.unchanged
 			);
 
 
@@ -1782,8 +2322,10 @@ async function syncMailboxes(){
 			"error"
 		);
 
+
 		status.textContent =
 			"Sync failed.";
+
 
 	}finally{
 
@@ -1808,6 +2350,7 @@ async function refreshAll(){
 			loadRules()
 		]);
 
+
 	}catch(error){
 
 		showMessage(
@@ -1819,7 +2362,7 @@ async function refreshAll(){
 
 
 /* =========================================================
-   EVENTS
+   EVENT LISTENERS
 ========================================================= */
 
 document
@@ -1834,10 +2377,16 @@ document
 	.getElementById("tokenInput")
 	.addEventListener(
 		"keydown",
-		e => {
-			if(e.key === "Enter"){
+		function(event){
+
+			if(
+				event.key === "Enter"
+			){
+
 				login();
+
 			}
+
 		}
 	);
 
@@ -1910,76 +2459,84 @@ document
    ADMIN EMAIL LIST
 ========================================================= */
 
-adminRoutes.get("/admin/emails", async (c) => {
+adminRoutes.get(
+	"/admin/emails",
+	async (c) => {
 
-	if (!isAuthorized(c)) {
-		return c.json(
-			{
-				error: {
-					message: "Unauthorized"
-				}
-			},
-			401,
-		);
-	}
+		if (!isAuthorized(c)) {
 
-
-	try {
-
-		const result =
-			await c.env.D1
-				.prepare(
-					`SELECT
-						id,
-						from_address,
-						to_address,
-						subject,
-						received_at,
-						has_attachments,
-						attachment_count,
-						is_public
-					FROM emails
-					ORDER BY received_at DESC
-					LIMIT 500`,
-				)
-				.all();
-
-
-		const emails =
-			result.results.map(
-				(row: any) => ({
-					...row,
-					has_attachments:
-						Boolean(
-							row.has_attachments
-						),
-					is_public:
-						Boolean(
-							row.is_public
-						),
-				}),
+			return c.json(
+				{
+					error:{
+						message:"Unauthorized"
+					}
+				},
+				401,
 			);
+		}
 
 
-		return c.json(emails);
+		try{
 
-	} catch (error) {
+			const result =
+				await c.env.D1
+					.prepare(
+						`SELECT
+							id,
+							from_address,
+							to_address,
+							subject,
+							received_at,
+							has_attachments,
+							attachment_count,
+							is_public
+						FROM emails
+						ORDER BY received_at DESC
+						LIMIT 500`,
+					)
+					.all();
 
-		const message =
-			error instanceof Error
-				? error.message
-				: String(error);
 
-		return c.json(
-			{
-				error: {
-					message
-				}
-			},
-			500,
-		);
-	}
-});
+			const emails =
+				result.results.map(
+					(row:any) => ({
+						...row,
+
+						has_attachments:
+							Boolean(
+								row.has_attachments
+							),
+
+						is_public:
+							Boolean(
+								row.is_public
+							),
+					}),
+				);
+
+
+			return c.json(emails);
+
+
+		}catch(error){
+
+			const message =
+				error instanceof Error
+					? error.message
+					: String(error);
+
+
+			return c.json(
+				{
+					error:{
+						message
+					}
+				},
+				500,
+			);
+		}
+	},
+);
 
 
 /* =========================================================
@@ -1991,10 +2548,11 @@ adminRoutes.get(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message: "Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2006,7 +2564,7 @@ adminRoutes.get(
 			c.req.param("emailId");
 
 
-		try {
+		try{
 
 			const result =
 				await c.env.D1
@@ -2030,11 +2588,11 @@ adminRoutes.get(
 					.first();
 
 
-			if (!result) {
+			if(!result){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"Email not found"
 						}
@@ -2045,29 +2603,35 @@ adminRoutes.get(
 
 
 			return c.json({
+
 				...result,
+
 				has_attachments:
 					Boolean(
 						(result as any)
 							.has_attachments
 					),
+
 				is_public:
 					Boolean(
 						(result as any)
 							.is_public
 					),
+
 			});
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message
 					}
 				},
@@ -2087,11 +2651,11 @@ adminRoutes.patch(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message:
-							"Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2103,20 +2667,20 @@ adminRoutes.patch(
 			c.req.param("emailId");
 
 
-		try {
+		try{
 
 			const body =
 				await c.req.json();
 
 
-			if (
+			if(
 				typeof body.is_public !==
 				"boolean"
-			) {
+			){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"is_public must be a boolean"
 						}
@@ -2142,11 +2706,11 @@ adminRoutes.patch(
 					.run();
 
 
-			if (!result.success) {
+			if(!result.success){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"Failed to update email visibility"
 						}
@@ -2157,22 +2721,24 @@ adminRoutes.patch(
 
 
 			return c.json({
-				success: true,
-				id: emailId,
+				success:true,
+				id:emailId,
 				is_public:
 					body.is_public,
 			});
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message
 					}
 				},
@@ -2192,11 +2758,11 @@ adminRoutes.delete(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message:
-							"Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2208,7 +2774,7 @@ adminRoutes.delete(
 			c.req.param("emailId");
 
 
-		try {
+		try{
 
 			const dbService =
 				createDatabaseService(
@@ -2217,20 +2783,18 @@ adminRoutes.delete(
 
 
 			const result =
-				await dbService
-					.deleteEmailById(
-						emailId
-					);
+				await dbService.deleteEmailById(
+					emailId
+				);
 
 
-			if (!result.success) {
+			if(!result.success){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
-								result.error
-									?.message ||
+								result.error?.message ||
 								"Failed to delete email"
 						}
 					},
@@ -2240,20 +2804,22 @@ adminRoutes.delete(
 
 
 			return c.json({
-				success: true,
-				id: emailId,
+				success:true,
+				id:emailId,
 			});
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message
 					}
 				},
@@ -2273,11 +2839,11 @@ adminRoutes.get(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message:
-							"Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2285,7 +2851,7 @@ adminRoutes.get(
 		}
 
 
-		try {
+		try{
 
 			const result =
 				await c.env.D1
@@ -2307,16 +2873,18 @@ adminRoutes.get(
 				result.results
 			);
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message
 					}
 				},
@@ -2336,11 +2904,11 @@ adminRoutes.post(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message:
-							"Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2348,7 +2916,7 @@ adminRoutes.post(
 		}
 
 
-		try {
+		try{
 
 			const body =
 				await c.req.json();
@@ -2356,30 +2924,27 @@ adminRoutes.post(
 
 			const senderPattern =
 				String(
-					body.sender_pattern ||
-					""
+					body.sender_pattern || ""
 				).trim();
 
 
 			const recipientPattern =
 				String(
-					body.recipient_pattern ||
-					""
+					body.recipient_pattern || ""
 				).trim();
 
 
 			const subjectPattern =
 				String(
-					body.subject_pattern ||
-					""
+					body.subject_pattern || ""
 				).trim();
 
 
-			if (!senderPattern) {
+			if(!senderPattern){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"sender_pattern is required"
 						}
@@ -2389,11 +2954,11 @@ adminRoutes.post(
 			}
 
 
-			if (!subjectPattern) {
+			if(!subjectPattern){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"subject_pattern is required"
 						}
@@ -2403,14 +2968,13 @@ adminRoutes.post(
 			}
 
 
-			if (
-				senderPattern.length >
-				320
-			) {
+			if(
+				senderPattern.length > 320
+			){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"sender_pattern is too long"
 						}
@@ -2420,14 +2984,13 @@ adminRoutes.post(
 			}
 
 
-			if (
-				recipientPattern.length >
-				320
-			) {
+			if(
+				recipientPattern.length > 320
+			){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"recipient_pattern is too long"
 						}
@@ -2437,14 +3000,13 @@ adminRoutes.post(
 			}
 
 
-			if (
-				subjectPattern.length >
-				500
-			) {
+			if(
+				subjectPattern.length > 500
+			){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"subject_pattern is too long"
 						}
@@ -2454,12 +3016,6 @@ adminRoutes.post(
 			}
 
 
-			/*
-			 * Prevent duplicate rules.
-			 *
-			 * NULL and blank recipient are treated
-			 * as the same global-rule condition.
-			 */
 			const existing =
 				await c.env.D1
 					.prepare(
@@ -2479,20 +3035,20 @@ adminRoutes.post(
 					.first();
 
 
-			if (existing) {
+			if(existing){
 
 				return c.json({
-					success: true,
-					existing: true,
-					id: (
-						existing as any
-					).id,
+					success:true,
+					existing:true,
+					id:
+						(existing as any).id,
 				});
 			}
 
 
 			const ruleId =
 				crypto.randomUUID();
+
 
 			const createdAt =
 				Date.now();
@@ -2530,11 +3086,11 @@ adminRoutes.post(
 					.run();
 
 
-			if (!result.success) {
+			if(!result.success){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"Failed to create rule"
 						}
@@ -2545,30 +3101,40 @@ adminRoutes.post(
 
 
 			return c.json({
-				success: true,
-				id: ruleId,
+
+				success:true,
+
+				id:ruleId,
+
 				sender_pattern:
 					senderPattern,
+
 				recipient_pattern:
 					recipientPattern ||
 					null,
+
 				subject_pattern:
 					subjectPattern,
-				action: "public",
+
+				action:"public",
+
 				created_at:
 					createdAt,
+
 			});
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message
 					}
 				},
@@ -2588,11 +3154,11 @@ adminRoutes.delete(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message:
-							"Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2604,7 +3170,7 @@ adminRoutes.delete(
 			c.req.param("ruleId");
 
 
-		try {
+		try{
 
 			const result =
 				await c.env.D1
@@ -2616,11 +3182,11 @@ adminRoutes.delete(
 					.run();
 
 
-			if (!result.success) {
+			if(!result.success){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"Failed to delete rule"
 						}
@@ -2631,20 +3197,22 @@ adminRoutes.delete(
 
 
 			return c.json({
-				success: true,
-				id: ruleId,
+				success:true,
+				id:ruleId,
 			});
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message
 					}
 				},
@@ -2664,11 +3232,11 @@ adminRoutes.post(
 	async (c) => {
 
 		if (!isAuthorized(c)) {
+
 			return c.json(
 				{
-					error: {
-						message:
-							"Unauthorized"
+					error:{
+						message:"Unauthorized"
 					}
 				},
 				401,
@@ -2676,12 +3244,8 @@ adminRoutes.post(
 		}
 
 
-		try {
+		try{
 
-			/*
-			 * These secrets are read only by the Worker.
-			 * They are NEVER sent to the browser.
-			 */
 			const env =
 				c.env as CloudflareBindings & {
 					MANUAL_SYNC_SCRIPT_URL?: string;
@@ -2692,15 +3256,16 @@ adminRoutes.post(
 			const scriptUrl =
 				env.MANUAL_SYNC_SCRIPT_URL;
 
+
 			const secret =
 				env.MANUAL_SYNC_SECRET;
 
 
-			if (!scriptUrl) {
+			if(!scriptUrl){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"MANUAL_SYNC_SCRIPT_URL is not configured."
 						}
@@ -2710,11 +3275,11 @@ adminRoutes.post(
 			}
 
 
-			if (!secret) {
+			if(!secret){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"MANUAL_SYNC_SECRET is not configured."
 						}
@@ -2737,7 +3302,7 @@ adminRoutes.post(
 
 						body:
 							JSON.stringify({
-								secret
+								secret:secret
 							}),
 					},
 				);
@@ -2747,13 +3312,11 @@ adminRoutes.post(
 				await response.text();
 
 
-			if(
-				!response.ok
-			){
+			if(!response.ok){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"Google Apps Script sync failed. HTTP " +
 								response.status
@@ -2766,18 +3329,19 @@ adminRoutes.post(
 
 			let result:any;
 
-			try {
+
+			try{
 
 				result =
 					JSON.parse(
 						responseText
 					);
 
-			} catch {
+			}catch(error){
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								"Google Apps Script returned an invalid response."
 						}
@@ -2794,7 +3358,7 @@ adminRoutes.post(
 
 				return c.json(
 					{
-						error: {
+						error:{
 							message:
 								result.error ||
 								"Mailbox sync failed."
@@ -2806,22 +3370,29 @@ adminRoutes.post(
 
 
 			return c.json({
+
 				success:true,
+
 				result:
-					result?.result ??
-					result,
+					result &&
+					result.result != null
+						? result.result
+						: result,
+
 			});
 
-		} catch (error) {
+
+		}catch(error){
 
 			const message =
 				error instanceof Error
 					? error.message
 					: String(error);
 
+
 			return c.json(
 				{
-					error: {
+					error:{
 						message:
 							"Mailbox sync failed: " +
 							message
