@@ -1,180 +1,409 @@
-// External imports
 import { OpenAPIHono } from "@hono/zod-openapi";
-
-// Database imports
 import { createDatabaseService } from "@/database";
 import * as r2 from "@/database/r2";
-
-// Schema imports
 import {
 	deleteAttachmentRoute,
 	getAttachmentRoute,
 	getAttachmentsRoute,
 	getEmailAttachmentsRoute,
 } from "@/schemas/attachments/routeDefinitions";
-
-// Utility imports
+import {
+	getAuthenticatedMailboxEmail,
+} from "@/utils/mailboxAuth";
 import { ERR, OK } from "@/utils/http";
 import { validateEmailDomain } from "@/utils/validation";
 
-const attachmentRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
+const attachmentRoutes = new OpenAPIHono<{
+	Bindings: CloudflareBindings;
+}>();
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
-attachmentRoutes.openapi(getEmailAttachmentsRoute, async (c) => {
-	const { emailAddress } = c.req.valid("param");
-	const { limit, offset } = c.req.valid("query");
+/**
+ * GET /emails/{emailAddress}/attachments
+ *
+ * Returns attachments belonging only to the
+ * authenticated mailbox owner.
+ */
+attachmentRoutes.openapi(
+	getEmailAttachmentsRoute,
+	async (c) => {
+		const { emailAddress } = c.req.valid("param");
+		const { limit, offset } = c.req.valid("query");
 
-	// Validate domain after Zod validation
-	const domainValidation = validateEmailDomain(emailAddress);
-	if (!domainValidation.valid) return c.json(domainValidation.error, 404);
+		const domainValidation =
+			validateEmailDomain(emailAddress);
 
-	const dbService = createDatabaseService(c.env.D1);
+		if (!domainValidation.valid) {
+			return c.json(
+				domainValidation.error,
+				404,
+			);
+		}
 
-	// Get emails with attachments
-	const {
-		results: allAttachments,
-		error: queryError,
-	} = await dbService.getEmailsWithAttachments(
-		emailAddress,
-		1000,
-		0,
-	);
+		const authenticatedEmail =
+			await getAuthenticatedMailboxEmail(
+				c.req.raw,
+				c.env.D1,
+			);
 
-	if (queryError) {
-		return c.json(ERR(queryError.message, "ValidationError"), 400);
-	}
+		if (!authenticatedEmail) {
+			return c.json(
+				ERR(
+					"Authentication required",
+					"Unauthorized",
+				),
+				401,
+			);
+		}
 
-	// Only allow attachments belonging to PUBLIC emails
-	const publicAttachments = [];
+		if (
+			authenticatedEmail.toLowerCase() !==
+			emailAddress.toLowerCase()
+		) {
+			return c.json(
+				ERR(
+					"Mailbox access denied",
+					"Forbidden",
+				),
+				403,
+			);
+		}
 
-	for (const attachment of allAttachments) {
+		const dbService =
+			createDatabaseService(c.env.D1);
+
+		const {
+			results: allAttachments,
+			error: queryError,
+		} = await dbService.getEmailsWithAttachments(
+			emailAddress,
+			1000,
+			0,
+		);
+
+		if (queryError) {
+			return c.json(
+				ERR(
+					queryError.message,
+					"ValidationError",
+				),
+				400,
+			);
+		}
+
+		const publicAttachments = [];
+
+		for (const attachment of allAttachments) {
+			const {
+				result: email,
+				error: emailError,
+			} = await dbService.getEmailById(
+				attachment.email_id,
+			);
+
+			if (emailError) {
+				console.error(
+					`Failed to check email visibility for attachment ${attachment.id}:`,
+					emailError,
+				);
+				continue;
+			}
+
+			if (
+				email?.is_public === true &&
+				email.to_address.toLowerCase() ===
+					authenticatedEmail.toLowerCase()
+			) {
+				publicAttachments.push(
+					attachment,
+				);
+			}
+		}
+
+		const sortedAttachments =
+			publicAttachments
+				.sort(
+					(a, b) =>
+						b.created_at -
+						a.created_at,
+				)
+				.slice(
+					offset,
+					offset + limit,
+				);
+
+		return c.json(
+			OK(sortedAttachments),
+		);
+	},
+);
+
+/**
+ * GET /inbox/{emailId}/attachments
+ */
+attachmentRoutes.openapi(
+	getAttachmentsRoute,
+	async (c) => {
+		const { emailId } =
+			c.req.valid("param");
+
+		const authenticatedEmail =
+			await getAuthenticatedMailboxEmail(
+				c.req.raw,
+				c.env.D1,
+			);
+
+		if (!authenticatedEmail) {
+			return c.json(
+				ERR(
+					"Authentication required",
+					"Unauthorized",
+				),
+				401,
+			);
+		}
+
+		const dbService =
+			createDatabaseService(c.env.D1);
+
 		const {
 			result: email,
 			error: emailError,
-		} = await dbService.getEmailById(attachment.email_id);
+		} = await dbService.getEmailById(
+			emailId,
+		);
 
 		if (emailError) {
-			console.error(
-				`Failed to check email visibility for attachment ${attachment.id}:`,
-				emailError,
+			return c.json(
+				ERR(
+					emailError.message,
+					"ValidationError",
+				),
+				400,
 			);
-			continue;
 		}
 
-		if (email?.is_public === true) {
-			publicAttachments.push(attachment);
+		if (
+			!email ||
+			email.is_public !== true
+		) {
+			return c.json(
+				ERR(
+					"Email not found",
+					"NotFound",
+				),
+				404,
+			);
 		}
-	}
 
-	// Sort by created_at and apply pagination
-	const sortedAttachments = publicAttachments
-		.sort((a, b) => b.created_at - a.created_at)
-		.slice(offset, offset + limit);
+		if (
+			email.to_address.toLowerCase() !==
+			authenticatedEmail.toLowerCase()
+		) {
+			return c.json(
+				ERR(
+					"Mailbox access denied",
+					"Forbidden",
+				),
+				403,
+			);
+		}
 
-	return c.json(OK(sortedAttachments));
-});
+		const {
+			results,
+			error,
+		} =
+			await dbService.getAttachmentsByEmailId(
+				emailId,
+			);
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
-attachmentRoutes.openapi(getAttachmentsRoute, async (c) => {
-	const { emailId } = c.req.valid("param");
+		if (error) {
+			return c.json(
+				ERR(
+					error.message,
+					"ValidationError",
+				),
+				400,
+			);
+		}
 
-	const dbService = createDatabaseService(c.env.D1);
+		return c.json(OK(results));
+	},
+);
 
-	// Check if email exists and is publicly visible
-	const {
-		result: email,
-		error: emailError,
-	} = await dbService.getEmailById(emailId);
+/**
+ * GET /attachments/{attachmentId}
+ *
+ * Download only attachments belonging to
+ * the authenticated mailbox owner.
+ */
+attachmentRoutes.openapi(
+	getAttachmentRoute,
+	async (c) => {
+		const { attachmentId } =
+			c.req.valid("param");
 
-	if (emailError) {
-		return c.json(ERR(emailError.message, "ValidationError"), 400);
-	}
+		const authenticatedEmail =
+			await getAuthenticatedMailboxEmail(
+				c.req.raw,
+				c.env.D1,
+			);
 
-	if (!email || email.is_public !== true) {
-		return c.json(ERR("Email not found", "NotFound"), 404);
-	}
+		if (!authenticatedEmail) {
+			return c.json(
+				ERR(
+					"Authentication required",
+					"Unauthorized",
+				),
+				401,
+			);
+		}
 
-	// Get attachments for this public email
-	const { results, error } = await dbService.getAttachmentsByEmailId(emailId);
+		const dbService =
+			createDatabaseService(c.env.D1);
 
-	if (error) {
-		return c.json(ERR(error.message, "ValidationError"), 400);
-	}
+		const {
+			result: attachment,
+			error: dbError,
+		} =
+			await dbService.getAttachmentById(
+				attachmentId,
+			);
 
-	return c.json(OK(results));
-});
+		if (dbError) {
+			return c.json(
+				ERR(
+					dbError.message,
+					"ValidationError",
+				),
+				400,
+			);
+		}
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
-attachmentRoutes.openapi(getAttachmentRoute, async (c) => {
-	const { attachmentId } = c.req.valid("param");
+		if (!attachment) {
+			return c.json(
+				ERR(
+					"Attachment not found",
+					"NotFound",
+				),
+				404,
+			);
+		}
 
-	const dbService = createDatabaseService(c.env.D1);
+		const {
+			result: email,
+			error: emailError,
+		} =
+			await dbService.getEmailById(
+				attachment.email_id,
+			);
 
-	// Get attachment metadata
-	const {
-		result: attachment,
-		error: dbError,
-	} = await dbService.getAttachmentById(attachmentId);
+		if (emailError) {
+			return c.json(
+				ERR(
+					emailError.message,
+					"ValidationError",
+				),
+				400,
+			);
+		}
 
-	if (dbError) {
-		return c.json(ERR(dbError.message, "ValidationError"), 400);
-	}
+		if (
+			!email ||
+			email.is_public !== true
+		) {
+			return c.json(
+				ERR(
+					"Attachment not found",
+					"NotFound",
+				),
+				404,
+			);
+		}
 
-	if (!attachment) {
-		return c.json(ERR("Attachment not found", "NotFound"), 404);
-	}
+		if (
+			email.to_address.toLowerCase() !==
+			authenticatedEmail.toLowerCase()
+		) {
+			return c.json(
+				ERR(
+					"Mailbox access denied",
+					"Forbidden",
+				),
+				403,
+			);
+		}
 
-	// Check parent email visibility
-	const {
-		result: email,
-		error: emailError,
-	} = await dbService.getEmailById(attachment.email_id);
+		const {
+			success,
+			data,
+			error: r2Error,
+		} = await r2.getAttachment(
+			c.env.R2,
+			attachment.r2_key,
+		);
 
-	if (emailError) {
-		return c.json(ERR(emailError.message, "ValidationError"), 400);
-	}
+		if (!success || !data) {
+			return c.json(
+				ERR(
+					r2Error?.message ||
+						"Failed to retrieve attachment",
+					"NotFound",
+				),
+				404,
+			);
+		}
 
-	if (!email || email.is_public !== true) {
-		return c.json(ERR("Attachment not found", "NotFound"), 404);
-	}
+		c.header(
+			"Content-Type",
+			attachment.content_type,
+		);
 
-	// Get attachment data from R2
-	const {
-		success,
-		data,
-		error: r2Error,
-	} = await r2.getAttachment(c.env.R2, attachment.r2_key);
+		c.header(
+			"Content-Disposition",
+			`attachment; filename="${attachment.filename}"`,
+		);
 
-	if (!success || !data) {
+		c.header(
+			"Content-Length",
+			attachment.size.toString(),
+		);
+
+		return c.body(data.body);
+	},
+);
+
+/**
+ * DELETE /attachments/{attachmentId}
+ *
+ * Attachment deletion remains disabled.
+ */
+attachmentRoutes.openapi(
+	deleteAttachmentRoute,
+	async (c) => {
+		const authenticatedEmail =
+			await getAuthenticatedMailboxEmail(
+				c.req.raw,
+				c.env.D1,
+			);
+
+		if (!authenticatedEmail) {
+			return c.json(
+				ERR(
+					"Authentication required",
+					"Unauthorized",
+				),
+				401,
+			);
+		}
+
 		return c.json(
 			ERR(
-				r2Error?.message || "Failed to retrieve attachment",
+				"Attachment deletion is not available",
 				"NotFound",
 			),
 			404,
 		);
-	}
-
-	// Set appropriate headers
-	c.header("Content-Type", attachment.content_type);
-	c.header(
-		"Content-Disposition",
-		`attachment; filename="${attachment.filename}"`,
-	);
-	c.header("Content-Length", attachment.size.toString());
-
-	return c.body(data.body);
-});
-
-// DELETE /attachments/{attachmentId}
-//
-// Public deletion is intentionally disabled for now.
-// We will later move deletion behind admin authentication.
-attachmentRoutes.openapi(deleteAttachmentRoute, async (c) => {
-	return c.json(
-		ERR("Attachment deletion is not available", "NotFound"),
-		404,
-	);
-});
+	},
+);
 
 export default attachmentRoutes;
