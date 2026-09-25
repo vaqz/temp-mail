@@ -12,6 +12,9 @@ declare namespace Cloudflare {
 		CLOUDFLARE_ACCOUNT_ID: string;
 		CLOUDFLARE_API_TOKEN: string;
 		D1: D1Database;
+
+		ADMIN_TOKEN: string;
+		SHEET_SYNC_TOKEN: string;
 	}
 }
 interface CloudflareBindings extends Cloudflare.Env {}
