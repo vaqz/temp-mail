@@ -3,6 +3,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import attachmentRoutes from "@/routes/attachmentRoutes";
 import emailRoutes from "@/routes/emailRoutes";
 import syncRoutes from "@/routes/syncRoutes";
+import authRoutes from "@/routes/authRoutes";
 import { setupDocumentation } from "@/utils/docs";
 import { logError } from "@/utils/logger";
 import corsMiddleware from "./middlewares/cors";
@@ -32,6 +33,9 @@ app.route("/", adminRoutes);
 
 // Mailbox Account Sync
 app.route("/", syncRoutes);
+
+// Mailbox Authentication
+app.route("/", authRoutes);
 
 // Health Check
 app.route("/", healthRoutes);
