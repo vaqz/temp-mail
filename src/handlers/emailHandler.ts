@@ -18,54 +18,99 @@ interface EmailAttachment {
 /**
  * Check whether an incoming email matches a PUBLIC visibility rule.
  *
- * Rules are global and are NOT tied to a specific recipient.
+ * Rules can be:
  *
- * Example:
- * sender_pattern = "promo@company.com"
- * subject_pattern = "promotion"
+ * 1. Global:
+ *    recipient_pattern is blank/null.
+ *    The rule can make matching emails public across all
+ *    @vaqzmobiz.com mailboxes.
  *
- * This can make matching emails public across all
- * @vaqzmobiz.com mailboxes.
+ * 2. Recipient-specific:
+ *    recipient_pattern contains an exact mailbox address.
+ *    The rule only applies when the incoming recipient matches
+ *    that address exactly.
+ *
+ * Sender matching is always exact.
+ * Subject matching uses "contains".
  *
  * If no rule matches, the email remains PRIVATE.
  */
 async function matchesPublicVisibilityRule(
 	dbConnection: D1Database,
 	fromAddress: string,
+	toAddress: string,
 	subject: string | null,
 ): Promise<boolean> {
 	try {
 		const { results } = await dbConnection
 			.prepare(
-				`SELECT sender_pattern, subject_pattern, action
+				`SELECT
+					sender_pattern,
+					subject_pattern,
+					recipient_pattern,
+					action
 				 FROM email_visibility_rules
 				 WHERE action = 'public'`,
 			)
 			.all();
 
 		const sender = fromAddress.trim().toLowerCase();
+		const recipient = toAddress.trim().toLowerCase();
 		const emailSubject = (subject || "").trim().toLowerCase();
 
 		for (const rule of results as Array<{
 			sender_pattern: string | null;
 			subject_pattern: string | null;
+			recipient_pattern: string | null;
 			action: string;
 		}>) {
-			const senderPattern = String(rule.sender_pattern || "")
+			const senderPattern = String(
+				rule.sender_pattern || "",
+			)
 				.trim()
 				.toLowerCase();
 
-			const subjectPattern = String(rule.subject_pattern || "")
+			const subjectPattern = String(
+				rule.subject_pattern || "",
+			)
 				.trim()
 				.toLowerCase();
 
-			// If the rule specifies a sender, it must match exactly.
-			if (senderPattern && sender !== senderPattern) {
+			const recipientPattern = String(
+				rule.recipient_pattern || "",
+			)
+				.trim()
+				.toLowerCase();
+
+			/*
+			 * If the rule specifies a sender,
+			 * it must match exactly.
+			 */
+			if (
+				senderPattern &&
+				sender !== senderPattern
+			) {
 				continue;
 			}
 
-			// If the rule specifies a subject pattern,
-			// the incoming subject must contain it.
+			/*
+			 * If the rule specifies a recipient,
+			 * it must match exactly.
+			 *
+			 * Blank recipient_pattern means the rule
+			 * applies globally to all mailboxes.
+			 */
+			if (
+				recipientPattern &&
+				recipient !== recipientPattern
+			) {
+				continue;
+			}
+
+			/*
+			 * If the rule specifies a subject pattern,
+			 * the incoming subject must contain it.
+			 */
 			if (
 				subjectPattern &&
 				!emailSubject.includes(subjectPattern)
@@ -73,7 +118,9 @@ async function matchesPublicVisibilityRule(
 				continue;
 			}
 
-			// All specified conditions matched.
+			/*
+			 * All specified conditions matched.
+			 */
 			return true;
 		}
 
@@ -84,8 +131,10 @@ async function matchesPublicVisibilityRule(
 			error,
 		);
 
-		// SECURITY DEFAULT:
-		// If rule checking fails, NEVER expose the email.
+		/*
+		 * SECURITY DEFAULT:
+		 * If rule checking fails, NEVER expose the email.
+		 */
 		return false;
 	}
 }
@@ -215,11 +264,15 @@ export async function handleEmail(
 		 * EXCEPTION:
 		 * If it matches a PUBLIC visibility rule,
 		 * it becomes PUBLIC automatically.
+		 *
+		 * Recipient-specific rules are checked against
+		 * message.to using an exact comparison.
 		 */
 		const isPublic =
 			await matchesPublicVisibilityRule(
 				env.D1,
 				fromAddress,
+				message.to,
 				subject,
 			);
 
