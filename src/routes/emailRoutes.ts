@@ -1,12 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-
-// Configuration imports
 import { CACHE } from "@/config/constants";
-
-// Database imports
 import { createDatabaseService } from "@/database";
-
-// Schema imports
 import {
 	deleteEmailRoute,
 	deleteEmailsRoute,
@@ -15,16 +9,22 @@ import {
 	getEmailsCountRoute,
 	getEmailsRoute,
 } from "@/schemas/emails/routeDefinitions";
-
-// Utility imports
+import {
+	getAuthenticatedMailboxEmail,
+} from "@/utils/mailboxAuth";
 import { ERR, OK } from "@/utils/http";
 import { validateEmailDomain } from "@/utils/validation";
 
-const emailRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
+const emailRoutes = new OpenAPIHono<{
+	Bindings: CloudflareBindings;
+}>();
 
-// GET /emails/{emailAddress}
-// Public inbox: only return emails marked as public
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+/**
+ * GET /emails/{emailAddress}
+ *
+ * Returns public emails belonging only to the
+ * authenticated mailbox owner.
+ */
 emailRoutes.openapi(getEmailsRoute, async (c) => {
 	const { emailAddress } = c.req.valid("param");
 	const { limit, offset } = c.req.valid("query");
@@ -33,6 +33,29 @@ emailRoutes.openapi(getEmailsRoute, async (c) => {
 
 	if (!domainValidation.valid) {
 		return c.json(domainValidation.error, 404);
+	}
+
+	const authenticatedEmail =
+		await getAuthenticatedMailboxEmail(
+			c.req.raw,
+			c.env.D1,
+		);
+
+	if (!authenticatedEmail) {
+		return c.json(
+			ERR("Authentication required", "Unauthorized"),
+			401,
+		);
+	}
+
+	if (
+		authenticatedEmail.toLowerCase() !==
+		emailAddress.toLowerCase()
+	) {
+		return c.json(
+			ERR("Mailbox access denied", "Forbidden"),
+			403,
+		);
 	}
 
 	try {
@@ -64,14 +87,21 @@ emailRoutes.openapi(getEmailsRoute, async (c) => {
 
 		return c.json(OK(convertedResults));
 	} catch (e: unknown) {
-		const error = e instanceof Error ? e : new Error(String(e));
-		return c.json(ERR(error.message, "D1Error"), 500);
+		const error =
+			e instanceof Error
+				? e
+				: new Error(String(e));
+
+		return c.json(
+			ERR(error.message, "D1Error"),
+			500,
+		);
 	}
 });
 
-// GET /emails/count/{emailAddress}
-// Public inbox count: only count public emails
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+/**
+ * GET /emails/count/{emailAddress}
+ */
 emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 	const { emailAddress } = c.req.valid("param");
 
@@ -79,6 +109,29 @@ emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 
 	if (!domainValidation.valid) {
 		return c.json(domainValidation.error, 404);
+	}
+
+	const authenticatedEmail =
+		await getAuthenticatedMailboxEmail(
+			c.req.raw,
+			c.env.D1,
+		);
+
+	if (!authenticatedEmail) {
+		return c.json(
+			ERR("Authentication required", "Unauthorized"),
+			401,
+		);
+	}
+
+	if (
+		authenticatedEmail.toLowerCase() !==
+		emailAddress.toLowerCase()
+	) {
+		return c.json(
+			ERR("Mailbox access denied", "Forbidden"),
+			403,
+		);
 	}
 
 	try {
@@ -92,76 +145,153 @@ emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 			.bind(emailAddress)
 			.first<{ count: number }>();
 
-		return c.json(OK({ count: Number(result?.count || 0) }));
+		return c.json(
+			OK({
+				count: Number(result?.count || 0),
+			}),
+		);
 	} catch (e: unknown) {
-		const error = e instanceof Error ? e : new Error(String(e));
-		return c.json(ERR(error.message, "D1Error"), 500);
+		const error =
+			e instanceof Error
+				? e
+				: new Error(String(e));
+
+		return c.json(
+			ERR(error.message, "D1Error"),
+			500,
+		);
 	}
 });
 
-// DELETE /inbox/{emailId}
-// Public users may delete a publicly visible email.
-// Private emails remain protected.
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+/**
+ * DELETE /inbox/{emailId}
+ *
+ * Only the authenticated mailbox owner can delete
+ * their own public email.
+ */
 emailRoutes.openapi(deleteEmailRoute, async (c) => {
 	const { emailId } = c.req.valid("param");
 
+	const authenticatedEmail =
+		await getAuthenticatedMailboxEmail(
+			c.req.raw,
+			c.env.D1,
+		);
+
+	if (!authenticatedEmail) {
+		return c.json(
+			ERR("Authentication required", "Unauthorized"),
+			401,
+		);
+	}
+
 	try {
-		// First verify that the email exists and is publicly visible.
 		const email = await c.env.D1
 			.prepare(
-				`SELECT id
+				`SELECT id, to_address
 				 FROM emails
 				 WHERE id = ?
 				   AND is_public = 1`,
 			)
 			.bind(emailId)
-			.first();
+			.first<{
+				id: string;
+				to_address: string;
+			}>();
 
 		if (!email) {
-			return c.json(ERR("Email not found", "NotFound"), 404);
+			return c.json(
+				ERR("Email not found", "NotFound"),
+				404,
+			);
 		}
 
-		// Delete only publicly visible emails.
+		if (
+			email.to_address.toLowerCase() !==
+			authenticatedEmail.toLowerCase()
+		) {
+			return c.json(
+				ERR("Mailbox access denied", "Forbidden"),
+				403,
+			);
+		}
+
 		const { success, error } = await c.env.D1
 			.prepare(
 				`DELETE FROM emails
 				 WHERE id = ?
-				   AND is_public = 1`,
+				   AND is_public = 1
+				   AND to_address = ?`,
 			)
-			.bind(emailId)
+			.bind(
+				emailId,
+				authenticatedEmail,
+			)
 			.run();
 
 		if (!success) {
 			return c.json(
 				ERR(
-					error?.message || "Unable to delete email",
+					error?.message ||
+						"Unable to delete email",
 					"D1Error",
 				),
 				500,
 			);
 		}
 
-		return c.json(OK({ deleted: true }));
+		return c.json(
+			OK({
+				deleted: true,
+			}),
+		);
 	} catch (e: unknown) {
-		const error = e instanceof Error ? e : new Error(String(e));
-		return c.json(ERR(error.message, "D1Error"), 500);
+		const error =
+			e instanceof Error
+				? e
+				: new Error(String(e));
+
+		return c.json(
+			ERR(error.message, "D1Error"),
+			500,
+		);
 	}
 });
 
-// GET /inbox/{emailId}
-// Only publicly visible emails may be opened.
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+/**
+ * GET /inbox/{emailId}
+ *
+ * Only the authenticated mailbox owner can open
+ * their own public email.
+ */
 emailRoutes.openapi(getEmailRoute, async (c) => {
 	const { emailId } = c.req.valid("param");
 
+	const authenticatedEmail =
+		await getAuthenticatedMailboxEmail(
+			c.req.raw,
+			c.env.D1,
+		);
+
+	if (!authenticatedEmail) {
+		return c.json(
+			ERR("Authentication required", "Unauthorized"),
+			401,
+		);
+	}
+
 	const dbService = createDatabaseService(c.env.D1);
 
-	const { result, error } =
-		await dbService.getEmailById(emailId);
+	const {
+		result,
+		error,
+	} = await dbService.getEmailById(emailId);
 
 	if (error) {
-		return c.json(ERR(error.message, "D1Error"), 500);
+		return c.json(
+			ERR(error.message, "D1Error"),
+			500,
+		);
 	}
 
 	if (!result || result.is_public !== true) {
@@ -171,14 +301,38 @@ emailRoutes.openapi(getEmailRoute, async (c) => {
 		);
 	}
 
+	if (
+		result.to_address.toLowerCase() !==
+		authenticatedEmail.toLowerCase()
+	) {
+		return c.json(
+			ERR("Mailbox access denied", "Forbidden"),
+			403,
+		);
+	}
+
 	return c.json(OK(result));
 });
 
-// DELETE /emails/{emailAddress}
-// Public mailbox-wide deletion remains disabled.
-// Individual public email deletion is allowed above.
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+/**
+ * DELETE /emails/{emailAddress}
+ *
+ * Mailbox-wide deletion remains disabled.
+ */
 emailRoutes.openapi(deleteEmailsRoute, async (c) => {
+	const authenticatedEmail =
+		await getAuthenticatedMailboxEmail(
+			c.req.raw,
+			c.env.D1,
+		);
+
+	if (!authenticatedEmail) {
+		return c.json(
+			ERR("Authentication required", "Unauthorized"),
+			401,
+		);
+	}
+
 	return c.json(
 		ERR(
 			"Mailbox-wide deletion is not available",
@@ -188,17 +342,21 @@ emailRoutes.openapi(deleteEmailsRoute, async (c) => {
 	);
 });
 
-// GET /domains
-// Only expose your own public domain.
-// Other domains from the original repository are intentionally hidden.
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+/**
+ * GET /domains
+ *
+ * Domain list is public and does not require login.
+ */
 emailRoutes.openapi(getDomainsRoute, async (c) => {
 	c.header(
 		"Cache-Control",
 		`public, max-age=${CACHE.DOMAINS_TTL}`,
 	);
 
-	c.header("ETag", `"domains-1"`);
+	c.header(
+		"ETag",
+		`"domains-1"`,
+	);
 
 	return c.json(
 		OK(["vaqzmobiz.com"]),
