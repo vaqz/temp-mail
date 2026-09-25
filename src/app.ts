@@ -2,6 +2,7 @@ import adminRoutes from "@/routes/adminRoutes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import attachmentRoutes from "@/routes/attachmentRoutes";
 import emailRoutes from "@/routes/emailRoutes";
+import syncRoutes from "@/routes/syncRoutes";
 import { setupDocumentation } from "@/utils/docs";
 import { logError } from "@/utils/logger";
 import corsMiddleware from "./middlewares/cors";
@@ -28,6 +29,9 @@ app.route("/", attachmentRoutes);
 
 // Admin Routes
 app.route("/", adminRoutes);
+
+// Mailbox Account Sync
+app.route("/", syncRoutes);
 
 // Health Check
 app.route("/", healthRoutes);
