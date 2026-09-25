@@ -166,7 +166,7 @@ function buildSessionCookie(
 		"Path=/",
 		"HttpOnly",
 		"Secure",
-		"SameSite=Lax",
+		"SameSite=None",
 		`Max-Age=${maxAgeSeconds}`,
 	].join("; ");
 }
@@ -376,7 +376,7 @@ export function buildLogoutCookie(): string {
 		"Path=/",
 		"HttpOnly",
 		"Secure",
-		"SameSite=Lax",
+		"SameSite=None",
 		"Max-Age=0",
 	].join("; ");
 }
