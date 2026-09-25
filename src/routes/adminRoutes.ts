@@ -1043,8 +1043,8 @@ function escapeForHtml(value){
 function escapeForJs(value){
 
 	return String(value ?? "")
-		.replace(/\\/g,"\\\\")
-		.replace(/'/g,"\\'")
+		.replace(/\\\\/g,"\\\\\\\\")
+		.replace(/'/g,"\\\\'")
 		.replace(/\n/g," ")
 		.replace(/\r/g," ");
 }
