@@ -495,8 +495,9 @@ th{
 		</h2>
 
 		<p class="muted">
-			Only emails matching the configured sender, recipient,
+			Emails matching the configured sender, recipient,
 			and subject conditions will automatically become public.
+			Leave Sender blank to allow any sender.
 			Leave Recipient blank to apply the rule to all mailboxes.
 		</p>
 
@@ -516,7 +517,7 @@ th{
 
 					<input
 						id="newRuleSender"
-						placeholder="sender@example.com"
+						placeholder="sender@example.com (optional)"
 					>
 
 				</div>
@@ -530,7 +531,7 @@ th{
 
 					<input
 						id="newRuleRecipient"
-						placeholder="mailbox@vaqzmobiz.com"
+						placeholder="mailbox@vaqzmobiz.com (optional)"
 					>
 
 				</div>
@@ -1989,7 +1990,8 @@ async function loadRules(){
 			sender.textContent =
 				"Sender: " +
 				String(
-					rule.sender_pattern || ""
+					rule.sender_pattern ||
+					"All senders"
 				);
 
 
@@ -2115,13 +2117,10 @@ async function addRule(){
 			.trim();
 
 
-	if(
-		!sender ||
-		!subjectPattern
-	){
+	if(!subjectPattern){
 
 		showMessage(
-			"Sender and subject phrase are required.",
+			"Subject phrase is required.",
 			"error"
 		);
 
@@ -2940,19 +2939,17 @@ adminRoutes.post(
 				).trim();
 
 
-			if(!senderPattern){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"sender_pattern is required"
-						}
-					},
-					400,
-				);
-			}
-
+			/*
+			 * Sender is optional.
+			 *
+			 * Blank sender means ANY sender.
+			 *
+			 * Recipient is also optional.
+			 *
+			 * Blank recipient means ANY mailbox.
+			 *
+			 * Subject phrase remains required.
+			 */
 
 			if(!subjectPattern){
 
@@ -3022,9 +3019,9 @@ adminRoutes.post(
 						`SELECT id
 						 FROM email_visibility_rules
 						 WHERE action = 'public'
-						   AND LOWER(sender_pattern) = LOWER(?)
+						   AND LOWER(COALESCE(sender_pattern, '')) = LOWER(?)
 						   AND LOWER(COALESCE(recipient_pattern, '')) = LOWER(?)
-						   AND LOWER(subject_pattern) = LOWER(?)
+						   AND LOWER(COALESCE(subject_pattern, '')) = LOWER(?)
 						 LIMIT 1`,
 					)
 					.bind(
