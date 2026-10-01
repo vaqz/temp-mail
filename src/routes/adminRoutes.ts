@@ -3366,17 +3366,48 @@ adminRoutes.post(
 			}
 
 
-			return c.json({
+const syncResult =
+    result &&
+    result.result != null
+        ? result.result
+        : result;
 
-				success:true,
 
-				result:
-					result &&
-					result.result != null
-						? result.result
-						: result,
+return c.json({
 
-			});
+    success: true,
+
+    result: {
+        success:
+            syncResult.success !== false,
+
+        accounts:
+            Number(
+                syncResult.accounts || 0
+            ),
+
+        created:
+            Number(
+                syncResult.created || 0
+            ),
+
+        updated:
+            Number(
+                syncResult.updated || 0
+            ),
+
+        disabled:
+            Number(
+                syncResult.disabled || 0
+            ),
+
+        unchanged:
+            Number(
+                syncResult.unchanged || 0
+            ),
+    },
+
+});
 
 
 		}catch(error){
