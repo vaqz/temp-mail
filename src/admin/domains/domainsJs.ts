@@ -1,3 +1,4 @@
+export const DOMAINS_JS = `
 let token = sessionStorage.getItem('vm_admin_token') || '';
 
 const get = (id) => document.getElementById(id);
@@ -184,3 +185,4 @@ document.addEventListener('DOMContentLoaded', function() {
 	});
 	if (token) openApp();
 });
+`;
