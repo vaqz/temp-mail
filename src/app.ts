@@ -1,4 +1,5 @@
 import adminRoutes from "@/routes/adminRoutes";
+import domainRoutes from "@/routes/domainRoutes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import attachmentRoutes from "@/routes/attachmentRoutes";
 import emailRoutes from "@/routes/emailRoutes";
@@ -22,22 +23,12 @@ app.onError((err, c) => {
 });
 
 // --- Routes ---
-// Email Routes
 app.route("/", emailRoutes);
-
-// Attachment Routes
 app.route("/", attachmentRoutes);
-
-// Admin Routes
 app.route("/", adminRoutes);
-
-// Mailbox Account Sync
+app.route("/", domainRoutes);
 app.route("/", syncRoutes);
-
-// Mailbox Authentication
 app.route("/", authRoutes);
-
-// Health Check
 app.route("/", healthRoutes);
 
 // --- OpenAPI Documentation ---
