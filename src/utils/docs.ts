@@ -1,10 +1,8 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import { DOMAINS_SET } from "@/config/domains";
 
 export function setupDocumentation(app: OpenAPIHono<{ Bindings: CloudflareBindings }>) {
-	// OpenAPI Documentation
 	app.doc("/openapi.json", {
 		openapi: "3.0.0",
 		info: {
@@ -17,7 +15,7 @@ A simple and fast temporary email service that allows you to receive emails with
 
 ## Features
 - Receive emails on temporary addresses
-- Multiple supported domains
+- Multiple supported domains managed dynamically
 - Real-time email retrieval
 - No registration required
 - Automatic cleanup
@@ -28,10 +26,7 @@ A simple and fast temporary email service that allows you to receive emails with
 - **Validation errors** include \`success: false\` and detailed error information
 
 ## Supported Domains
-This API currently supports the following email domains:
-${`\n${Array.from(DOMAINS_SET)
-	.map((domain) => `- ${domain}`)
-	.join("\n")}`}
+Supported mailbox domains are managed dynamically in the database. Use the Domains endpoint to retrieve the currently active domains.
 
 **Repository**: [github.com/vwh/temp-mail](https://github.com/vwh/temp-mail)  
 **Issues**: [Report bugs or request features](https://github.com/vwh/temp-mail/issues)
@@ -69,10 +64,8 @@ ${`\n${Array.from(DOMAINS_SET)
 		"x-issues": "https://github.com/vwh/temp-mail/issues",
 	});
 
-	// Swagger UI - Traditional documentation
 	app.get("/swagger", swaggerUI({ url: "/openapi.json" }));
 
-	// Scalar - Modern documentation
 	app.get(
 		"/",
 		Scalar({
