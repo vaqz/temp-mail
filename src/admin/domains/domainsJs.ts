@@ -1,188 +1,20 @@
 export const DOMAINS_JS = `
 let token = sessionStorage.getItem('vm_admin_token') || '';
-
-const get = (id) => document.getElementById(id);
-
-function headers(extra) {
-	return Object.assign({ Authorization: 'Bearer ' + token }, extra || {});
-}
-
-async function api(path, options) {
-	const request = options || {};
-	request.headers = headers(request.headers || {});
-	const response = await fetch(path, request);
-	let data = null;
-	try { data = await response.json(); } catch (_) {}
-	if (response.status === 401) throw new Error('Unauthorized');
-	if (!response.ok) throw new Error((data && data.error && data.error.message) || 'Request failed');
-	return data;
-}
-
-function show(id, text, error) {
-	const element = get(id);
-	element.textContent = text;
-	element.className = 'message show ' + (error ? 'err' : 'ok');
-}
-
-function escapeHtml(value) {
-	return String(value == null ? '' : value)
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#039;');
-}
-
-function domainInputId(domain) {
-	return 'destination-' + encodeURIComponent(domain).replaceAll('%', '_');
-}
-
-function renderDomain(domain) {
-	const activeClass = domain.is_active ? '' : 'off';
-	const activeText = domain.is_active ? 'ACTIVE' : 'DISABLED';
-	const toggleClass = domain.is_active ? 'warning' : 'success';
-	const toggleText = domain.is_active ? 'Disable' : 'Enable';
-	const toggleState = domain.is_active ? 'false' : 'true';
-	const inputId = domainInputId(domain.domain);
-
-	const destinations = domain.destinations.length
-		? domain.destinations.map(function(destination) {
-			const statusClass = destination.is_active ? '' : 'off';
-			const statusText = destination.is_active ? 'ACTIVE' : 'DISABLED';
-			return [
-				'<div class="dest">',
-				'<span>', escapeHtml(destination.destination_email),
-				' <span class="badge ', statusClass, '">', statusText, '</span></span>',
-				'<button class="small danger" data-action="remove-destination" data-id="',
-				escapeHtml(destination.id), '">Remove</button>',
-				'</div>'
-			].join('');
-		}).join('')
-		: '<div class="muted" style="margin-top:12px">No Gmail copy destinations.</div>';
-
-	return [
-		'<div class="domain">',
-		'<div class="domain-head">',
-		'<div><strong>', escapeHtml(domain.domain), '</strong>',
-		'<span class="badge ', activeClass, '">', activeText, '</span>',
-		'<div class="muted">Mailbox login and sync support</div></div>',
-		'<button class="small ', toggleClass, '" data-action="toggle-domain" data-domain="',
-		encodeURIComponent(domain.domain), '" data-active="', toggleState, '">', toggleText, '</button>',
-		'</div>', destinations,
-		'<div class="row" style="margin-top:12px">',
-		'<input id="', inputId, '" style="flex:1;min-width:220px;padding:9px;border:1px solid #ccd3df;border-radius:8px" placeholder="Add destination email">',
-		'<button class="small" data-action="add-destination" data-domain="',
-		encodeURIComponent(domain.domain), '" data-input="', inputId, '">Add Destination</button>',
-		'</div></div>'
-	].join('');
-}
-
-async function load() {
-	try {
-		const domains = await api('/admin/api/domains');
-		get('list').innerHTML = domains.length
-			? domains.map(renderDomain).join('')
-			: '<div class="muted">No domains configured.</div>';
-	} catch (error) {
-		show('msg', error instanceof Error ? error.message : String(error), true);
-	}
-}
-
-async function openApp() {
-	try {
-		await api('/admin/api/domains');
-		sessionStorage.setItem('vm_admin_token', token);
-		get('login').classList.add('hidden');
-		get('app').classList.remove('hidden');
-		await load();
-	} catch (error) {
-		show('loginMsg', error instanceof Error ? error.message : 'Invalid admin token.', true);
-	}
-}
-
-async function addDomain() {
-	try {
-		await api('/admin/api/domains', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				domain: get('domain').value,
-				destination_email: get('destination').value
-			})
-		});
-		get('domain').value = '';
-		get('destination').value = '';
-		show('msg', 'Domain added successfully.');
-		await load();
-	} catch (error) {
-		show('msg', error instanceof Error ? error.message : String(error), true);
-	}
-}
-
-async function toggleDomain(domain, active) {
-	try {
-		await api('/admin/api/domains/' + domain, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ is_active: active })
-		});
-		show('msg', active ? 'Domain enabled.' : 'Domain disabled.');
-		await load();
-	} catch (error) {
-		show('msg', error instanceof Error ? error.message : String(error), true);
-	}
-}
-
-async function addDestination(domain, inputId) {
-	const input = get(inputId);
-	try {
-		await api('/admin/api/domains/' + domain + '/destinations', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ destination_email: input.value })
-		});
-		input.value = '';
-		show('msg', 'Destination added.');
-		await load();
-	} catch (error) {
-		show('msg', error instanceof Error ? error.message : String(error), true);
-	}
-}
-
-async function removeDestination(id) {
-	if (!confirm('Remove this Gmail copy destination?')) return;
-	try {
-		await api('/admin/api/destinations/' + encodeURIComponent(id), { method: 'DELETE' });
-		show('msg', 'Destination removed.');
-		await load();
-	} catch (error) {
-		show('msg', error instanceof Error ? error.message : String(error), true);
-	}
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-	get('loginBtn').addEventListener('click', function() {
-		token = get('token').value.trim();
-		openApp();
-	});
-	get('token').addEventListener('keydown', function(event) {
-		if (event.key === 'Enter') get('loginBtn').click();
-	});
-	get('addBtn').addEventListener('click', addDomain);
-	get('backBtn').addEventListener('click', function() { location.href = '/admin'; });
-	get('logoutBtn').addEventListener('click', function() {
-		sessionStorage.removeItem('vm_admin_token');
-		location.reload();
-	});
-	get('list').addEventListener('click', function(event) {
-		const target = event.target;
-		const button = target.closest('[data-action]');
-		if (!button) return;
-		const action = button.dataset.action;
-		if (action === 'toggle-domain') toggleDomain(button.dataset.domain || '', button.dataset.active === 'true');
-		if (action === 'add-destination') addDestination(button.dataset.domain || '', button.dataset.input || '');
-		if (action === 'remove-destination') removeDestination(button.dataset.id || '');
-	});
-	if (token) openApp();
-});
+const $ = id => document.getElementById(id);
+const ICONS={trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>',lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',unlock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7-2.5"/></svg>'};
+function headers(extra){return Object.assign({Authorization:'Bearer '+token},extra||{})}
+async function api(path,options){const o=options||{};const r=await fetch(path,Object.assign({},o,{headers:headers(o.headers||{})}));let d=null;try{d=await r.json()}catch(_){}if(r.status===401)throw new Error('Unauthorized');if(!r.ok)throw new Error(d&&d.error&&d.error.message||'Request failed');return d}
+function show(text,error){const e=$('msg');e.textContent=text;e.className='notice show '+(error?'err':'ok')}
+function loginShow(text){const e=$('loginMsg');e.textContent=text;e.className='notice show err'}
+function esc(v){return String(v==null?'':v).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split('"').join('&quot;').split("'").join('&#039;')}
+function iconButton(icon,title,cls,fn){const b=document.createElement('button');b.className='icon-btn '+(cls||'');b.title=title;b.setAttribute('aria-label',title);b.innerHTML=icon;b.onclick=fn;return b}
+function renderDomain(d){const box=document.createElement('article');box.className='domain';const active=d.is_active;const head=document.createElement('div');head.className='domain-head';const info=document.createElement('div');info.innerHTML='<div class="domain-name">'+esc(d.domain)+'</div><span class="badge '+(active?'on':'off')+'"><span class="dot"></span>'+(active?'ACTIVE':'DISABLED')+'</span><div class="muted" style="margin-top:7px">Mailbox login and sync support</div>';const actions=document.createElement('div');actions.className='actions';const toggle=document.createElement('button');toggle.className='btn small '+(active?'danger':'success');toggle.textContent=active?'Disable':'Enable';toggle.onclick=()=>toggleDomain(d.domain,!active);actions.appendChild(toggle);head.appendChild(info);head.appendChild(actions);box.appendChild(head);
+const section=document.createElement('div');section.className='destinations';const title=document.createElement('div');title.className='dest-title';title.innerHTML='<strong>Gmail copy destinations</strong><span class="muted">'+d.destinations.length+' configured</span>';section.appendChild(title);if(!d.destinations.length){const empty=document.createElement('div');empty.className='muted';empty.textContent='No Gmail copy destinations configured.';section.appendChild(empty)}else d.destinations.forEach(x=>{const row=document.createElement('div');row.className='dest';const left=document.createElement('div');left.className='dest-email';left.innerHTML=esc(x.destination_email)+' <span class="badge '+(x.is_active?'on':'off')+'">'+(x.is_active?'ACTIVE':'DISABLED')+'</span>';row.appendChild(left);const ra=document.createElement('div');ra.className='dest-actions';ra.appendChild(iconButton(ICONS.trash,'Remove destination','danger',()=>removeDestination(x.id)));row.appendChild(ra);section.appendChild(row)});const add=document.createElement('div');add.className='add-destination';const input=document.createElement('input');input.placeholder='Add Gmail destination';const btn=document.createElement('button');btn.className='btn small';btn.textContent='Add Destination';btn.onclick=()=>addDestination(d.domain,input);add.appendChild(input);add.appendChild(btn);section.appendChild(add);box.appendChild(section);return box}
+async function load(){try{const domains=await api('/admin/api/domains');const list=$('list');list.innerHTML='';if(!domains.length)list.innerHTML='<div class="empty">No domains configured.</div>';else domains.forEach(d=>list.appendChild(renderDomain(d)));const active=domains.filter(d=>d.is_active).length;const destinations=domains.reduce((n,d)=>n+d.destinations.length,0);$('domainCount').textContent=domains.length;$('activeCount').textContent=active;$('destinationCount').textContent=destinations}catch(e){show(e.message||String(e),true)}}
+async function openApp(){try{token=token.trim();await api('/admin/api/domains');sessionStorage.setItem('vm_admin_token',token);$('login').classList.add('hidden');$('app').classList.remove('hidden');await load()}catch(e){sessionStorage.removeItem('vm_admin_token');loginShow(e.message||'Invalid admin token.')}}
+async function addDomain(){const domain=$('domain').value.trim(),destination=$('destination').value.trim();if(!domain)return show('Domain is required.',true);try{await api('/admin/api/domains',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,destination_email:destination})});$('domain').value='';$('destination').value='';show('Domain added successfully.');await load()}catch(e){show(e.message,true)}}
+async function toggleDomain(domain,active){try{await api('/admin/api/domains/'+encodeURIComponent(domain),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:active})});show(active?'Domain enabled.':'Domain disabled.');await load()}catch(e){show(e.message,true)}}
+async function addDestination(domain,input){const destination=input.value.trim();if(!destination)return show('Destination email is required.',true);try{await api('/admin/api/domains/'+encodeURIComponent(domain)+'/destinations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destination_email:destination})});show('Destination added.');await load()}catch(e){show(e.message,true)}}
+async function removeDestination(id){if(!confirm('Remove this Gmail copy destination?'))return;try{await api('/admin/api/destinations/'+encodeURIComponent(id),{method:'DELETE'});show('Destination removed.');await load()}catch(e){show(e.message,true)}}
+document.addEventListener('DOMContentLoaded',()=>{$('loginBtn').onclick=()=>{token=$('token').value.trim();openApp()};$('token').onkeydown=e=>{if(e.key==='Enter')$('loginBtn').click()};$('addBtn').onclick=addDomain;$('backBtn').onclick=()=>location.href='/admin';$('logoutBtn').onclick=()=>{sessionStorage.removeItem('vm_admin_token');location.reload()};if(token)openApp()});
 `;
