@@ -313,7 +313,12 @@ export async function handleEmail(
 		);
 
 		// Send a copy of vmhub.top emails to Gmail
-		if (message.to.toLowerCase().endsWith("@vmhub.top")) {
+		const recipient = message.to.trim().toLowerCase();
+
+		if (
+		    recipient.endsWith("@vaqzmobiz.com") ||
+		    recipient.endsWith("@vmhub.top")
+		) {
 		    ctx.waitUntil(
 		        (async () => {
 		            try {
