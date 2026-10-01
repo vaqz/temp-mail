@@ -5,7 +5,7 @@ import {
 	getMailboxSessionByTokenHash,
 	updateMailboxSessionLastUsed,
 } from "@/database/d1";
-import { getActiveMailboxDomains } from "@/routes/domainRoutes";
+import { getActiveMailboxDomains } from "@/utils/mailboxDomains";
 
 const SESSION_COOKIE_NAME = "vm_mailbox_session";
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
