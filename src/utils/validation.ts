@@ -1,20 +1,36 @@
-import { DOMAINS_SET } from "@/config/domains";
 import { ERR } from "@/utils/http";
 import { getDomain } from "@/utils/mail";
+import { isActiveMailboxDomain } from "@/utils/mailboxDomains";
 
 /**
- * Validate email domain after Zod validation
- * Returns validation result with error if invalid
+ * Validate email domain against the active D1 mailbox-domain configuration.
  */
-export function validateEmailDomain(emailAddress: string) {
-	const domain = getDomain(emailAddress);
-	if (!DOMAINS_SET.has(domain)) {
+export async function validateEmailDomain(
+	db: D1Database,
+	emailAddress: string,
+) {
+	const domain = getDomain(emailAddress).trim().toLowerCase();
+	const supported = await isActiveMailboxDomain(db, domain);
+
+	if (!supported) {
+		const supportedDomains = await db
+			.prepare(
+				`SELECT domain
+				 FROM mailbox_domains
+				 WHERE is_active = 1
+				 ORDER BY domain ASC`,
+			)
+			.all<{ domain: string }>();
+
 		return {
 			valid: false,
 			error: ERR("Domain not supported", "DomainError", {
-				supported_domains: Array.from(DOMAINS_SET),
+				supported_domains: supportedDomains.results.map((row) =>
+					String(row.domain).toLowerCase(),
+				),
 			}),
 		};
 	}
+
 	return { valid: true };
 }
