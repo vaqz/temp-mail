@@ -5,15 +5,10 @@ import {
 	getMailboxSessionByTokenHash,
 	updateMailboxSessionLastUsed,
 } from "@/database/d1";
+import { getActiveMailboxDomains } from "@/routes/domainRoutes";
 
 const SESSION_COOKIE_NAME = "vm_mailbox_session";
-
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
-
-const ALLOWED_DOMAINS = [
-	"@vaqzmobiz.com",
-	"@vmhub.top",
-];
 
 interface MailboxSession {
 	id: string;
@@ -30,11 +25,7 @@ function normalizeEmail(value: string): string {
 
 function bytesToBase64(bytes: Uint8Array): string {
 	let binary = "";
-
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-
+	for (const byte of bytes) binary += String.fromCharCode(byte);
 	return btoa(binary);
 }
 
@@ -44,23 +35,12 @@ function bytesToHex(bytes: Uint8Array): string {
 		.join("");
 }
 
-/**
- * SHA-256 hash of a UTF-8 string.
- */
 async function sha256(value: string): Promise<string> {
 	const data = new TextEncoder().encode(value);
-
-	const digest = await crypto.subtle.digest(
-		"SHA-256",
-		data,
-	);
-
+	const digest = await crypto.subtle.digest("SHA-256", data);
 	return bytesToHex(new Uint8Array(digest));
 }
 
-/**
- * Verify a password against the PBKDF2 hash stored in D1.
- */
 export async function verifyMailboxPassword(
 	password: string,
 	passwordHash: string,
@@ -74,7 +54,6 @@ export async function verifyMailboxPassword(
 			false,
 			["deriveBits"],
 		);
-
 		const derivedBits = await crypto.subtle.deriveBits(
 			{
 				name: "PBKDF2",
@@ -85,20 +64,11 @@ export async function verifyMailboxPassword(
 			passwordKey,
 			256,
 		);
-
 		const derived = new Uint8Array(derivedBits);
 		const stored = base64ToBytes(passwordHash);
-
-		if (derived.length !== stored.length) {
-			return false;
-		}
-
+		if (derived.length !== stored.length) return false;
 		let difference = 0;
-
-		for (let i = 0; i < derived.length; i++) {
-			difference |= derived[i] ^ stored[i];
-		}
-
+		for (let i = 0; i < derived.length; i++) difference |= derived[i] ^ stored[i];
 		return difference === 0;
 	} catch {
 		return false;
@@ -108,62 +78,29 @@ export async function verifyMailboxPassword(
 function base64ToBytes(value: string): Uint8Array {
 	const binary = atob(value);
 	const bytes = new Uint8Array(binary.length);
-
-	for (let i = 0; i < binary.length; i++) {
-		bytes[i] = binary.charCodeAt(i);
-	}
-
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 	return bytes;
 }
 
-/**
- * Create a random session token.
- */
 function generateSessionToken(): string {
-	return bytesToBase64(
-		crypto.getRandomValues(new Uint8Array(32)),
-	);
+	return bytesToBase64(crypto.getRandomValues(new Uint8Array(32)));
 }
 
-/**
- * Create a random session ID.
- */
 function generateSessionId(): string {
-	return bytesToHex(
-		crypto.getRandomValues(new Uint8Array(16)),
-	);
+	return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
 }
 
-/**
- * Get the session cookie value from the request.
- */
 function getSessionCookie(request: Request): string | null {
 	const cookieHeader = request.headers.get("Cookie");
-
-	if (!cookieHeader) {
-		return null;
-	}
-
-	const cookies = cookieHeader.split(";");
-
-	for (const cookie of cookies) {
+	if (!cookieHeader) return null;
+	for (const cookie of cookieHeader.split(";")) {
 		const [name, ...valueParts] = cookie.trim().split("=");
-
-		if (name === SESSION_COOKIE_NAME) {
-			return valueParts.join("=") || null;
-		}
+		if (name === SESSION_COOKIE_NAME) return valueParts.join("=") || null;
 	}
-
 	return null;
 }
 
-/**
- * Create the browser session cookie.
- */
-function buildSessionCookie(
-	token: string,
-	maxAgeSeconds: number,
-): string {
+function buildSessionCookie(token: string, maxAgeSeconds: number): string {
 	return [
 		`${SESSION_COOKIE_NAME}=${token}`,
 		"Path=/",
@@ -174,89 +111,40 @@ function buildSessionCookie(
 	].join("; ");
 }
 
-/**
- * Create a login session for a mailbox account.
- */
 export async function loginMailbox(
 	db: D1Database,
 	email: string,
 	password: string,
 ): Promise<
-	| {
-			success: true;
-			accountEmail: string;
-			cookie: string;
-	  }
-	| {
-			success: false;
-			error: string;
-	  }
+	| { success: true; accountEmail: string; cookie: string }
+	| { success: false; error: string }
 > {
 	const normalizedEmail = normalizeEmail(email);
+	const supportedDomains = await getActiveMailboxDomains(db);
 
-	if (!ALLOWED_DOMAINS.some((domain) => normalizedEmail.endsWith(domain))) {
-		return {
-			success: false,
-			error: "Invalid email or password",
-		};
+	if (!supportedDomains.some((domain) => normalizedEmail.endsWith(`@${domain}`))) {
+		return { success: false, error: "Invalid email or password" };
 	}
 
-	if (!password) {
-		return {
-			success: false,
-			error: "Invalid email or password",
-		};
+	if (!password) return { success: false, error: "Invalid email or password" };
+
+	const { result: account, error: accountError } = await getMailboxAccount(db, normalizedEmail);
+	if (accountError) return { success: false, error: "Unable to verify account" };
+
+	if (!account || account.is_active !== 1 || !account.password_hash || !account.password_salt) {
+		return { success: false, error: "Invalid email or password" };
 	}
 
-	const {
-		result: account,
-		error: accountError,
-	} = await getMailboxAccount(db, normalizedEmail);
-
-	if (accountError) {
-		return {
-			success: false,
-			error: "Unable to verify account",
-		};
-	}
-
-	if (
-		!account ||
-		account.is_active !== 1 ||
-		!account.password_hash ||
-		!account.password_salt
-	) {
-		return {
-			success: false,
-			error: "Invalid email or password",
-		};
-	}
-
-	const passwordMatches = await verifyMailboxPassword(
-		password,
-		account.password_hash,
-		account.password_salt,
-	);
-
-	if (!passwordMatches) {
-		return {
-			success: false,
-			error: "Invalid email or password",
-		};
-	}
+	const passwordMatches = await verifyMailboxPassword(password, account.password_hash, account.password_salt);
+	if (!passwordMatches) return { success: false, error: "Invalid email or password" };
 
 	const token = generateSessionToken();
 	const tokenHash = await sha256(token);
-
 	const sessionId = generateSessionId();
-
 	const now = Date.now();
 	const expiresAt = now + SESSION_DURATION_MS;
 
-	const {
-		success,
-		error: sessionError,
-	} = await createMailboxSession(
+	const { success, error: sessionError } = await createMailboxSession(
 		db,
 		sessionId,
 		normalizedEmail,
@@ -266,113 +154,40 @@ export async function loginMailbox(
 	);
 
 	if (!success) {
-		return {
-			success: false,
-			error:
-				sessionError?.message ||
-				"Unable to create session",
-		};
+		return { success: false, error: sessionError?.message || "Unable to create session" };
 	}
 
 	return {
 		success: true,
 		accountEmail: normalizedEmail,
-		cookie: buildSessionCookie(
-			token,
-			SESSION_DURATION_MS / 1000,
-		),
+		cookie: buildSessionCookie(token, SESSION_DURATION_MS / 1000),
 	};
 }
 
-/**
- * Get the currently authenticated mailbox session.
- */
-export async function getMailboxSession(
-	request: Request,
-	db: D1Database,
-): Promise<MailboxSession | null> {
+export async function getMailboxSession(request: Request, db: D1Database): Promise<MailboxSession | null> {
 	const token = getSessionCookie(request);
-
-	if (!token) {
-		return null;
-	}
-
+	if (!token) return null;
 	const tokenHash = await sha256(token);
-
-	const {
-		result: session,
-		error,
-	} = await getMailboxSessionByTokenHash(
-		db,
-		tokenHash,
-	);
-
-	if (error || !session) {
-		return null;
-	}
-
+	const { result: session, error } = await getMailboxSessionByTokenHash(db, tokenHash);
+	if (error || !session) return null;
 	const mailboxSession = session as MailboxSession;
-
-	await updateMailboxSessionLastUsed(
-		db,
-		mailboxSession.id,
-		Date.now(),
-	);
-
+	await updateMailboxSessionLastUsed(db, mailboxSession.id, Date.now());
 	return mailboxSession;
 }
 
-/**
- * Get the currently authenticated mailbox email.
- */
-export async function getAuthenticatedMailboxEmail(
-	request: Request,
-	db: D1Database,
-): Promise<string | null> {
+export async function getAuthenticatedMailboxEmail(request: Request, db: D1Database): Promise<string | null> {
 	const session = await getMailboxSession(request, db);
-
-	if (!session) {
-		return null;
-	}
-
-	return session.account_email;
+	return session ? session.account_email : null;
 }
 
-/**
- * Log out the current mailbox session.
- */
-export async function logoutMailbox(
-	request: Request,
-	db: D1Database,
-): Promise<void> {
+export async function logoutMailbox(request: Request, db: D1Database): Promise<void> {
 	const token = getSessionCookie(request);
-
-	if (!token) {
-		return;
-	}
-
+	if (!token) return;
 	const tokenHash = await sha256(token);
-
-	const {
-		result: session,
-	} = await getMailboxSessionByTokenHash(
-		db,
-		tokenHash,
-	);
-
-	if (!session) {
-		return;
-	}
-
-	await deleteMailboxSession(
-		db,
-		session.id,
-	);
+	const { result: session } = await getMailboxSessionByTokenHash(db, tokenHash);
+	if (session) await deleteMailboxSession(db, session.id);
 }
 
-/**
- * Build a cookie that removes the current session.
- */
 export function buildLogoutCookie(): string {
 	return [
 		`${SESSION_COOKIE_NAME}=`,
