@@ -9,13 +9,18 @@ const ALLOWED_DOMAINS = [
 	"@vmhub.top",
 ];
 
+const MAX_BATCH_SIZE = 50;
+
 interface SyncAccount {
 	email: string;
 	password: string;
 }
 
 interface SyncRequest {
-	accounts: SyncAccount[];
+	mode?: "accounts" | "reconcile" | "test";
+	accounts?: SyncAccount[];
+	emails?: string[];
+	partial?: boolean;
 }
 
 function isAuthorized(c: any): boolean {
@@ -30,18 +35,24 @@ function isAuthorized(c: any): boolean {
 }
 
 function normalizeEmail(value: unknown): string {
-	return String(value || "").trim().toLowerCase();
+	return String(value || "")
+		.trim()
+		.toLowerCase();
 }
 
 function isAllowedDomain(email: string): boolean {
-	return ALLOWED_DOMAINS.some((domain) => email.endsWith(domain));
+	return ALLOWED_DOMAINS.some((domain) =>
+		email.endsWith(domain)
+	);
 }
 
 async function hashPassword(
 	password: string,
 	saltBytes?: Uint8Array,
 ): Promise<{ hash: string; salt: string }> {
-	const salt = saltBytes || crypto.getRandomValues(new Uint8Array(16));
+	const salt =
+		saltBytes ||
+		crypto.getRandomValues(new Uint8Array(16));
 
 	const encoder = new TextEncoder();
 
@@ -133,282 +144,481 @@ async function verifyPassword(
 	return difference === 0;
 }
 
-/*
+async function getExistingAccounts(c: any) {
+	const result = await c.env.D1
+		.prepare(
+			`SELECT
+				email,
+				password_hash,
+				password_salt,
+				is_active
+			FROM mailbox_accounts
+			WHERE email LIKE ? OR email LIKE ?`,
+		)
+		.bind(
+			"%" + ALLOWED_DOMAINS[0],
+			"%" + ALLOWED_DOMAINS[1],
+		)
+		.all<{
+			email: string;
+			password_hash: string | null;
+			password_salt: string | null;
+			is_active: number;
+		}>();
+
+	return result.results;
+}
+
+
+/* =========================================================
  * POST /sync/mailbox-accounts
  *
- * Called by Google Apps Script.
+ * Modes:
  *
- * Authorization:
- * Bearer SHEET_SYNC_TOKEN
+ * accounts:
+ *   Process one batch of accounts.
  *
- * Only supported mailbox domains are accepted.
- */
-syncRoutes.post("/sync/mailbox-accounts", async (c) => {
-	if (!isAuthorized(c)) {
-		return c.json(
-			{
-				error: {
-					message: "Unauthorized",
-				},
-			},
-			401,
-		);
-	}
+ * reconcile:
+ *   Disable accounts that exist in D1 but are no longer
+ *   present in the Google Sheet.
+ *
+ * test:
+ *   Safe connectivity test. Does not modify D1.
+ * ========================================================= */
 
-	try {
-		const body = (await c.req.json()) as SyncRequest;
-
-		if (!body || !Array.isArray(body.accounts)) {
+syncRoutes.post(
+	"/sync/mailbox-accounts",
+	async (c) => {
+		if (!isAuthorized(c)) {
 			return c.json(
 				{
 					error: {
-						message: "accounts must be an array",
+						message: "Unauthorized",
 					},
 				},
-				400,
+				401,
 			);
 		}
 
-		if (body.accounts.length > 1500) {
-			return c.json(
-				{
-					error: {
-						message: "Too many accounts in one sync request",
-					},
-				},
-				400,
-			);
-		}
+		try {
+			const body =
+				(await c.req.json()) as SyncRequest;
 
-		const normalizedAccounts = new Map<
-			string,
-			string
-		>();
+			const mode = body.mode || "accounts";
 
-		for (const account of body.accounts) {
-			const email = normalizeEmail(account?.email);
-			const password = String(account?.password || "");
 
-			if (!email) {
-				continue;
+			/* =================================================
+			 * SAFE TEST
+			 * ================================================= */
+
+			if (mode === "test") {
+				return c.json({
+					success: true,
+					message:
+						"Cloudflare mailbox sync connection is working.",
+				});
 			}
 
-			if (!isAllowedDomain(email)) {
-				continue;
-			}
 
-			if (email.length > 320) {
-				continue;
-			}
+			/* =================================================
+			 * RECONCILE
+			 * ================================================= */
 
-			/*
-			 * Blank passwords are deliberately retained as disabled
-			 * accounts. They will not be able to log in.
-			 */
-			normalizedAccounts.set(email, password);
-		}
-
-		const accounts = Array.from(normalizedAccounts.entries());
-
-		const now = Date.now();
-
-		let created = 0;
-		let updated = 0;
-		let disabled = 0;
-		let unchanged = 0;
-
-		/*
-		 * Get all existing Vaqz Mobiz accounts.
-		 */
-		const existingResult = await c.env.D1
-			.prepare(
-				`SELECT
-					email,
-					password_hash,
-					password_salt,
-					is_active
-				FROM mailbox_accounts
-				WHERE email LIKE ? OR email LIKE ?`,
-			)
-			.bind("%" + ALLOWED_DOMAINS[0], "%" + ALLOWED_DOMAINS[1])
-			.all<{
-				email: string;
-				password_hash: string | null;
-				password_salt: string | null;
-				is_active: number;
-			}>();
-
-		const existingMap = new Map(
-			existingResult.results.map((row) => [
-				row.email.toLowerCase(),
-				row,
-			]),
-		);
-
-		/*
-		 * Process incoming accounts.
-		 */
-		for (const [email, password] of accounts) {
-			const existing = existingMap.get(email);
-
-			/*
-			 * No password:
-			 * Keep the account but disable login.
-			 */
-			if (!password) {
-				if (!existing) {
-					await c.env.D1
-						.prepare(
-							`INSERT INTO mailbox_accounts
-								(email, password_hash, password_salt, is_active, created_at, updated_at)
-							 VALUES (?, NULL, NULL, 0, ?, ?)`,
-						)
-						.bind(email, now, now)
-						.run();
-
-					created++;
-				} else if (existing.is_active !== 0) {
-					await c.env.D1
-						.prepare(
-							`UPDATE mailbox_accounts
-							 SET is_active = 0,
-								 updated_at = ?
-							 WHERE email = ?`,
-						)
-						.bind(now, email)
-						.run();
-
-					disabled++;
+			if (mode === "reconcile") {
+				if (!Array.isArray(body.emails)) {
+					return c.json(
+						{
+							error: {
+								message:
+									"emails must be an array",
+							},
+						},
+						400,
+					);
 				}
 
-				continue;
+				const allowedEmails =
+					new Set<string>();
+
+				for (const value of body.emails) {
+					const email =
+						normalizeEmail(value);
+
+					if (
+						email &&
+						isAllowedDomain(email) &&
+						email.length <= 320
+					) {
+						allowedEmails.add(email);
+					}
+				}
+
+				const existing =
+					await getExistingAccounts(c);
+
+				const statements: any[] = [];
+
+				for (const row of existing) {
+					const email =
+						row.email.toLowerCase();
+
+					if (
+						!allowedEmails.has(email) &&
+						row.is_active !== 0
+					) {
+						statements.push(
+							c.env.D1
+								.prepare(
+									`UPDATE mailbox_accounts
+									 SET is_active = 0,
+										 updated_at = ?
+									 WHERE email = ?`,
+								)
+								.bind(
+									Date.now(),
+									email,
+								),
+						);
+					}
+				}
+
+				/*
+				 * D1 batch keeps reconciliation efficient.
+				 * Process in groups to avoid creating an
+				 * unnecessarily large batch.
+				 */
+				const BATCH_SIZE = 100;
+
+				for (
+					let i = 0;
+					i < statements.length;
+					i += BATCH_SIZE
+				) {
+					const chunk =
+						statements.slice(
+							i,
+							i + BATCH_SIZE,
+						);
+
+					if (chunk.length > 0) {
+						await c.env.D1.batch(
+							chunk,
+						);
+					}
+				}
+
+				return c.json({
+					success: true,
+					mode: "reconcile",
+					checked: allowedEmails.size,
+					disabled:
+						statements.length,
+				});
 			}
 
-			/*
-			 * Existing account with a stored password:
-			 * verify the Sheet password against the existing hash.
-			 *
-			 * If it matches, nothing needs to be re-hashed.
-			 */
+
+			/* =================================================
+			 * ACCOUNT BATCH
+			 * ================================================= */
+
+			if (!Array.isArray(body.accounts)) {
+				return c.json(
+					{
+						error: {
+							message:
+								"accounts must be an array",
+						},
+					},
+					400,
+				);
+			}
+
 			if (
-				existing &&
-				existing.password_hash &&
-				existing.password_salt
+				body.accounts.length >
+				MAX_BATCH_SIZE
 			) {
-				const matches = await verifyPassword(
+				return c.json(
+					{
+						error: {
+							message:
+								`Maximum ${MAX_BATCH_SIZE} accounts per batch`,
+						},
+					},
+					400,
+				);
+			}
+
+			const normalizedAccounts =
+				new Map<string, string>();
+
+			for (
+				const account of body.accounts
+			) {
+				const email =
+					normalizeEmail(
+						account?.email,
+					);
+
+				const password =
+					String(
+						account?.password || "",
+					);
+
+				if (!email) {
+					continue;
+				}
+
+				if (!isAllowedDomain(email)) {
+					continue;
+				}
+
+				if (email.length > 320) {
+					continue;
+				}
+
+				normalizedAccounts.set(
+					email,
 					password,
-					existing.password_hash,
-					existing.password_salt,
+				);
+			}
+
+			const accounts =
+				Array.from(
+					normalizedAccounts.entries(),
 				);
 
-				if (matches) {
-					if (existing.is_active !== 1) {
-						await c.env.D1
-							.prepare(
-								`UPDATE mailbox_accounts
-								 SET is_active = 1,
-									 updated_at = ?
-								 WHERE email = ?`,
-							)
-							.bind(now, email)
-							.run();
+			const existing =
+				await getExistingAccounts(c);
 
-						updated++;
-					} else {
-						unchanged++;
+			const existingMap =
+				new Map(
+					existing.map((row) => [
+						row.email.toLowerCase(),
+						row,
+					]),
+				);
+
+			const now = Date.now();
+
+			let created = 0;
+			let updated = 0;
+			let disabled = 0;
+			let unchanged = 0;
+
+			const statements: any[] = [];
+
+
+			/* =================================================
+			 * PROCESS ACCOUNTS
+			 * ================================================= */
+
+			for (
+				const [email, password]
+				of accounts
+			) {
+				const current =
+					existingMap.get(email);
+
+
+				/*
+				 * Blank password:
+				 *
+				 * Keep account record but disable login.
+				 */
+
+				if (!password) {
+					if (!current) {
+						statements.push(
+							c.env.D1
+								.prepare(
+									`INSERT INTO mailbox_accounts
+										(
+											email,
+											password_hash,
+											password_salt,
+											is_active,
+											created_at,
+											updated_at
+										)
+									 VALUES (?, NULL, NULL, 0, ?, ?)`,
+								)
+								.bind(
+									email,
+									now,
+									now,
+								),
+						);
+
+						created++;
+					} else if (
+						current.is_active !== 0
+					) {
+						statements.push(
+							c.env.D1
+								.prepare(
+									`UPDATE mailbox_accounts
+									 SET is_active = 0,
+										 updated_at = ?
+									 WHERE email = ?`,
+								)
+								.bind(
+									now,
+									email,
+								),
+						);
+
+						disabled++;
 					}
 
 					continue;
 				}
+
+
+				/*
+				 * Existing account:
+				 *
+				 * Verify Sheet password against
+				 * existing password hash.
+				 */
+
+				if (
+					current &&
+					current.password_hash &&
+					current.password_salt
+				) {
+					const matches =
+						await verifyPassword(
+							password,
+							current.password_hash,
+							current.password_salt,
+						);
+
+					if (matches) {
+						if (
+							current.is_active !==
+							1
+						) {
+							statements.push(
+								c.env.D1
+									.prepare(
+										`UPDATE mailbox_accounts
+										 SET is_active = 1,
+											 updated_at = ?
+										 WHERE email = ?`,
+									)
+									.bind(
+										now,
+										email,
+									),
+							);
+
+							updated++;
+						} else {
+							unchanged++;
+						}
+
+						continue;
+					}
+				}
+
+
+				/*
+				 * New account OR changed password.
+				 */
+
+				const passwordData =
+					await hashPassword(
+						password,
+					);
+
+				if (!current) {
+					statements.push(
+						c.env.D1
+							.prepare(
+								`INSERT INTO mailbox_accounts
+									(
+										email,
+										password_hash,
+										password_salt,
+										is_active,
+										created_at,
+										updated_at
+									)
+								 VALUES (?, ?, ?, 1, ?, ?)`,
+							)
+							.bind(
+								email,
+								passwordData.hash,
+								passwordData.salt,
+								now,
+								now,
+							),
+					);
+
+					created++;
+				} else {
+					statements.push(
+						c.env.D1
+							.prepare(
+								`UPDATE mailbox_accounts
+								 SET password_hash = ?,
+									 password_salt = ?,
+									 is_active = 1,
+									 updated_at = ?
+								 WHERE email = ?`,
+							)
+							.bind(
+								passwordData.hash,
+								passwordData.salt,
+								now,
+								email,
+							),
+					);
+
+					updated++;
+				}
 			}
 
-			/*
-			 * New account or changed password.
-			 */
-			const passwordData = await hashPassword(password);
 
-			if (!existing) {
-				await c.env.D1
-					.prepare(
-						`INSERT INTO mailbox_accounts
-							(email, password_hash, password_salt, is_active, created_at, updated_at)
-						 VALUES (?, ?, ?, 1, ?, ?)`,
-					)
-					.bind(
-						email,
-						passwordData.hash,
-						passwordData.salt,
-						now,
-						now,
-					)
-					.run();
+			/* =================================================
+			 * WRITE ACCOUNT CHANGES
+			 * ================================================= */
 
-				created++;
-			} else {
-				await c.env.D1
-					.prepare(
-						`UPDATE mailbox_accounts
-						 SET password_hash = ?,
-							 password_salt = ?,
-							 is_active = 1,
-							 updated_at = ?
-						 WHERE email = ?`,
-					)
-					.bind(
-						passwordData.hash,
-						passwordData.salt,
-						now,
-						email,
-					)
-					.run();
-
-				updated++;
+			if (statements.length > 0) {
+				await c.env.D1.batch(
+					statements,
+				);
 			}
-		}
 
-		/*
-		 * Accounts that exist in D1 but were not included in the Sheet
-		 * are disabled rather than deleted.
-		 *
-		 * This prevents accidental loss of account records.
-		 */
-		for (const [email, existing] of existingMap) {
-			if (!normalizedAccounts.has(email) && existing.is_active !== 0) {
-				await c.env.D1
-					.prepare(
-						`UPDATE mailbox_accounts
-						 SET is_active = 0,
-							 updated_at = ?
-						 WHERE email = ?`,
-					)
-					.bind(now, email)
-					.run();
 
-				disabled++;
-			}
-		}
+			return c.json({
+				success: true,
+				mode: "accounts",
+				partial:
+					body.partial === true,
+				synced: accounts.length,
+				created,
+				updated,
+				disabled,
+				unchanged,
+			});
 
-		return c.json({
-			success: true,
-			synced: accounts.length,
-			created,
-			updated,
-			disabled,
-			unchanged,
-		});
-	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : String(error);
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: String(error);
 
-		return c.json(
-			{
-				error: {
-					message,
+			return c.json(
+				{
+					error: {
+						message,
+					},
 				},
-			},
-			500,
-		);
-	}
-});
+				500,
+			);
+		}
+	},
+);
 
 export default syncRoutes;
