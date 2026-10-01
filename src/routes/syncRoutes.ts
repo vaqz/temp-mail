@@ -4,7 +4,10 @@ const syncRoutes = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 }>();
 
-const ALLOWED_DOMAIN = "@vaqzmobiz.com";
+const ALLOWED_DOMAINS = [
+	"@vaqzmobiz.com",
+	"@vmhub.top",
+];
 
 interface SyncAccount {
 	email: string;
@@ -28,6 +31,10 @@ function isAuthorized(c: any): boolean {
 
 function normalizeEmail(value: unknown): string {
 	return String(value || "").trim().toLowerCase();
+}
+
+function isAllowedDomain(email: string): boolean {
+	return ALLOWED_DOMAINS.some((domain) => email.endsWith(domain));
 }
 
 async function hashPassword(
@@ -134,7 +141,7 @@ async function verifyPassword(
  * Authorization:
  * Bearer SHEET_SYNC_TOKEN
  *
- * Only @vaqzmobiz.com accounts are accepted.
+ * Only supported mailbox domains are accepted.
  */
 syncRoutes.post("/sync/mailbox-accounts", async (c) => {
 	if (!isAuthorized(c)) {
@@ -186,7 +193,7 @@ syncRoutes.post("/sync/mailbox-accounts", async (c) => {
 				continue;
 			}
 
-			if (!email.endsWith(ALLOWED_DOMAIN)) {
+			if (!isAllowedDomain(email)) {
 				continue;
 			}
 
@@ -221,9 +228,9 @@ syncRoutes.post("/sync/mailbox-accounts", async (c) => {
 					password_salt,
 					is_active
 				FROM mailbox_accounts
-				WHERE email LIKE ?`,
+				WHERE email LIKE ? OR email LIKE ?`,
 			)
-			.bind("%" + ALLOWED_DOMAIN)
+			.bind("%" + ALLOWED_DOMAINS[0], "%" + ALLOWED_DOMAINS[1])
 			.all<{
 				email: string;
 				password_hash: string | null;
