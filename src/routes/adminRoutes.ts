@@ -131,6 +131,23 @@ button:disabled{
 	cursor:not-allowed;
 }
 
+.button-link{
+	display:inline-block;
+	text-decoration:none;
+	font:inherit;
+	border:0;
+	border-radius:7px;
+	padding:9px 12px;
+	cursor:pointer;
+	color:white;
+	text-align:center;
+}
+
+.button-link.secondary{
+	background:#64748b;
+}
+
+
 .row{
 	display:flex;
 	gap:10px;
@@ -411,6 +428,13 @@ th{
 				>
 					Sync Mailboxes
 				</button>
+
+				<a
+					href="/admin/domains"
+					class="button-link secondary"
+				>
+					Mailbox Domains
+				</a>
 
 				<button
 					id="refreshBtn"
