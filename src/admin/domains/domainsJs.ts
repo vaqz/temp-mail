@@ -1,30 +1,30 @@
-const token = sessionStorage.getItem('vm_admin_token') || '';
+let token = sessionStorage.getItem('vm_admin_token') || '';
 
-const get = (id: string) => document.getElementById(id) as HTMLElement;
+const get = (id) => document.getElementById(id);
 
-function headers(extra?: Record<string, string>): Record<string, string> {
+function headers(extra) {
 	return Object.assign({ Authorization: 'Bearer ' + token }, extra || {});
 }
 
-async function api(path: string, options?: RequestInit): Promise<any> {
-	const request: RequestInit = options || {};
-	request.headers = headers(request.headers as Record<string, string> | undefined);
+async function api(path, options) {
+	const request = options || {};
+	request.headers = headers(request.headers || {});
 	const response = await fetch(path, request);
-	let data: any = null;
+	let data = null;
 	try { data = await response.json(); } catch (_) {}
 	if (response.status === 401) throw new Error('Unauthorized');
-	if (!response.ok) throw new Error(data?.error?.message || 'Request failed');
+	if (!response.ok) throw new Error((data && data.error && data.error.message) || 'Request failed');
 	return data;
 }
 
-function show(id: string, text: string, error = false): void {
+function show(id, text, error) {
 	const element = get(id);
 	element.textContent = text;
 	element.className = 'message show ' + (error ? 'err' : 'ok');
 }
 
-function escapeHtml(value: unknown): string {
-	return String(value ?? '')
+function escapeHtml(value) {
+	return String(value == null ? '' : value)
 		.replaceAll('&', '&amp;')
 		.replaceAll('<', '&lt;')
 		.replaceAll('>', '&gt;')
@@ -32,11 +32,11 @@ function escapeHtml(value: unknown): string {
 		.replaceAll("'", '&#039;');
 }
 
-function domainInputId(domain: string): string {
+function domainInputId(domain) {
 	return 'destination-' + encodeURIComponent(domain).replaceAll('%', '_');
 }
 
-function renderDomain(domain: any): string {
+function renderDomain(domain) {
 	const activeClass = domain.is_active ? '' : 'off';
 	const activeText = domain.is_active ? 'ACTIVE' : 'DISABLED';
 	const toggleClass = domain.is_active ? 'warning' : 'success';
@@ -45,13 +45,12 @@ function renderDomain(domain: any): string {
 	const inputId = domainInputId(domain.domain);
 
 	const destinations = domain.destinations.length
-		? domain.destinations.map((destination: any) => {
+		? domain.destinations.map(function(destination) {
 			const statusClass = destination.is_active ? '' : 'off';
 			const statusText = destination.is_active ? 'ACTIVE' : 'DISABLED';
 			return [
 				'<div class="dest">',
-				'<span>',
-				escapeHtml(destination.destination_email),
+				'<span>', escapeHtml(destination.destination_email),
 				' <span class="badge ', statusClass, '">', statusText, '</span></span>',
 				'<button class="small danger" data-action="remove-destination" data-id="',
 				escapeHtml(destination.id), '">Remove</button>',
@@ -68,8 +67,7 @@ function renderDomain(domain: any): string {
 		'<div class="muted">Mailbox login and sync support</div></div>',
 		'<button class="small ', toggleClass, '" data-action="toggle-domain" data-domain="',
 		encodeURIComponent(domain.domain), '" data-active="', toggleState, '">', toggleText, '</button>',
-		'</div>',
-		destinations,
+		'</div>', destinations,
 		'<div class="row" style="margin-top:12px">',
 		'<input id="', inputId, '" style="flex:1;min-width:220px;padding:9px;border:1px solid #ccd3df;border-radius:8px" placeholder="Add destination email">',
 		'<button class="small" data-action="add-destination" data-domain="',
@@ -78,7 +76,7 @@ function renderDomain(domain: any): string {
 	].join('');
 }
 
-async function load(): Promise<void> {
+async function load() {
 	try {
 		const domains = await api('/admin/api/domains');
 		get('list').innerHTML = domains.length
@@ -89,7 +87,7 @@ async function load(): Promise<void> {
 	}
 }
 
-async function openApp(): Promise<void> {
+async function openApp() {
 	try {
 		await api('/admin/api/domains');
 		sessionStorage.setItem('vm_admin_token', token);
@@ -101,15 +99,18 @@ async function openApp(): Promise<void> {
 	}
 }
 
-async function addDomain(): Promise<void> {
+async function addDomain() {
 	try {
 		await api('/admin/api/domains', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ domain: (get('domain') as HTMLInputElement).value, destination_email: (get('destination') as HTMLInputElement).value })
+			body: JSON.stringify({
+				domain: get('domain').value,
+				destination_email: get('destination').value
+			})
 		});
-		(get('domain') as HTMLInputElement).value = '';
-		(get('destination') as HTMLInputElement).value = '';
+		get('domain').value = '';
+		get('destination').value = '';
 		show('msg', 'Domain added successfully.');
 		await load();
 	} catch (error) {
@@ -117,7 +118,7 @@ async function addDomain(): Promise<void> {
 	}
 }
 
-async function toggleDomain(domain: string, active: boolean): Promise<void> {
+async function toggleDomain(domain, active) {
 	try {
 		await api('/admin/api/domains/' + domain, {
 			method: 'PATCH',
@@ -131,8 +132,8 @@ async function toggleDomain(domain: string, active: boolean): Promise<void> {
 	}
 }
 
-async function addDestination(domain: string, inputId: string): Promise<void> {
-	const input = get(inputId) as HTMLInputElement;
+async function addDestination(domain, inputId) {
+	const input = get(inputId);
 	try {
 		await api('/admin/api/domains/' + domain + '/destinations', {
 			method: 'POST',
@@ -147,7 +148,7 @@ async function addDestination(domain: string, inputId: string): Promise<void> {
 	}
 }
 
-async function removeDestination(id: string): Promise<void> {
+async function removeDestination(id) {
 	if (!confirm('Remove this Gmail copy destination?')) return;
 	try {
 		await api('/admin/api/destinations/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -158,24 +159,23 @@ async function removeDestination(id: string): Promise<void> {
 	}
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-	get('loginBtn').addEventListener('click', () => {
-		const input = get('token') as HTMLInputElement;
-		(input.value || '').trim();
+document.addEventListener('DOMContentLoaded', function() {
+	get('loginBtn').addEventListener('click', function() {
+		token = get('token').value.trim();
 		openApp();
 	});
-	get('token').addEventListener('keydown', (event) => {
-		if ((event as KeyboardEvent).key === 'Enter') (get('loginBtn') as HTMLButtonElement).click();
+	get('token').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter') get('loginBtn').click();
 	});
 	get('addBtn').addEventListener('click', addDomain);
-	get('backBtn').addEventListener('click', () => { location.href = '/admin'; });
-	get('logoutBtn').addEventListener('click', () => {
+	get('backBtn').addEventListener('click', function() { location.href = '/admin'; });
+	get('logoutBtn').addEventListener('click', function() {
 		sessionStorage.removeItem('vm_admin_token');
 		location.reload();
 	});
-	get('list').addEventListener('click', (event) => {
-		const target = event.target as HTMLElement;
-		const button = target.closest('[data-action]') as HTMLElement | null;
+	get('list').addEventListener('click', function(event) {
+		const target = event.target;
+		const button = target.closest('[data-action]');
 		if (!button) return;
 		const action = button.dataset.action;
 		if (action === 'toggle-domain') toggleDomain(button.dataset.domain || '', button.dataset.active === 'true');
