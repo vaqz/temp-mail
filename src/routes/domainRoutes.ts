@@ -31,40 +31,6 @@ function validEmail(email: string): boolean {
 }
 
 /* =========================================================
-   DOMAIN MANAGER PAGE
-========================================================= */
-
-domainRoutes.get("/admin/domains", async (c) => {
-	if (!isAuthorized(c)) {
-		return c.html("<!doctype html><html><body style=\"font-family:Arial;padding:40px\"><h2>Unauthorized</h2><p>Please open this page from the authenticated admin session.</p></body></html>", 401);
-	}
-
-	const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mailbox Domains · Vaqz Mobiz Mail</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172033;font-family:Arial,Helvetica,sans-serif}.wrap{max-width:1100px;margin:auto;padding:24px}.card{background:#fff;border:1px solid #e5e9f2;border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.04)}h1,h2{margin:0 0 8px}.muted{color:#64748b;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}.field label{display:block;color:#64748b;font-size:12px;margin-bottom:6px}.field input{width:100%;padding:11px 12px;border:1px solid #ccd3df;border-radius:8px;font:inherit}button{border:0;border-radius:8px;padding:10px 13px;background:#2563eb;color:#fff;cursor:pointer;font:inherit}button.secondary{background:#64748b}button.success{background:#15803d}button.warning{background:#b45309}button.danger{background:#dc2626}button.small{padding:7px 9px;font-size:13px}.domain{border:1px solid #e5e9f2;border-radius:12px;padding:16px;margin-top:12px}.domain-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.badge{display:inline-block;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:bold;background:#dcfce7;color:#166534}.badge.off{background:#f1f5f9;color:#475569}.dest{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid #edf0f5;padding:10px 0 0;margin-top:10px}.actions{display:flex;gap:6px;flex-wrap:wrap}.message{display:none;padding:10px 12px;border-radius:8px;margin:10px 0}.message.show{display:block}.ok{background:#dcfce7;color:#166534}.err{background:#fee2e2;color:#991b1b}@media(max-width:700px){.wrap{padding:12px}.form{grid-template-columns:1fr}.form button{width:100%}.actions{width:100%}.actions button{flex:1}}
-</style></head><body><div class="wrap">
-<div class="card"><div class="row" style="justify-content:space-between"><div><h1>Mailbox Domains</h1><div class="muted">Control supported mailbox domains and Gmail copy destinations.</div></div><button class="secondary" onclick="location.href='/admin'">Back to Admin</button></div><div id="msg" class="message"></div></div>
-<div class="card"><h2>Add domain</h2><p class="muted">Cloudflare DNS and Email Routing remain separate. This page controls application-side mailbox support.</p><div class="form"><div class="field"><label>Domain</label><input id="domain" placeholder="vmdeet.art" autocomplete="off"></div><div class="field"><label>Gmail copy destination</label><input id="destination" placeholder="netflixegy889@gmail.com" autocomplete="off"></div><button class="success" id="addBtn">Add Domain</button></div></div>
-<div class="card"><h2>Configured domains</h2><div id="list"><div class="muted">Loading...</div></div></div></div>
-<script>
-const token=sessionStorage.getItem('vm_admin_token')||'';
-function headers(extra){return Object.assign({'Authorization':'Bearer '+token},extra||{});}
-async function api(path,opt){const o=opt||{};o.headers=headers(o.headers);const r=await fetch(path,o);let d=null;try{d=await r.json()}catch{}if(r.status===401)throw new Error('Unauthorized. Please return to the admin dashboard and log in again.');if(!r.ok)throw new Error(d?.error?.message||'Request failed');return d;}
-function msg(t,e){const x=document.getElementById('msg');x.textContent=t;x.className='message show '+(e?'err':'ok');setTimeout(()=>x.className='message',4000)}
-function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
-async function load(){try{const ds=await api('/admin/api/domains'),list=document.getElementById('list');list.innerHTML='';if(!ds.length){list.innerHTML='<div class="muted">No domains configured.</div>';return}for(const d of ds){const box=document.createElement('div');box.className='domain';box.innerHTML='<div class="domain-head"><div><strong>'+esc(d.domain)+'</strong> <span class="badge '+(d.is_active?'':'off')+'">'+(d.is_active?'ACTIVE':'DISABLED')+'</span><div class="muted">Mailbox login and sync support</div></div><div class="actions"><button class="small '+(d.is_active?'warning':'success')+'" onclick="toggleDomain(\''+encodeURIComponent(d.domain)+'\','+(d.is_active?'false':'true')+')">'+(d.is_active?'Disable':'Enable')+'</button></div></div><div>'+(d.destinations.length?d.destinations.map(x=>'<div class="dest"><span>'+esc(x.destination_email)+' '+(x.is_active?'<span class="badge">ACTIVE</span>':'<span class="badge off">DISABLED</span>')+'</span><button class="small danger" onclick="removeDestination(\''+x.id+'\')">Remove</button></div>').join(''):'<div class="muted" style="margin-top:12px">No Gmail copy destinations.</div>')+'</div><div class="row" style="margin-top:12px"><input style="flex:1;min-width:220px;padding:9px;border:1px solid #ccd3df;border-radius:8px" id="dest-'+esc(d.domain)+'" placeholder="Add destination email"><button class="small" onclick="addDestination(\''+encodeURIComponent(d.domain)+'\')">Add Destination</button></div>';list.appendChild(box)}}catch(e){msg(e.message,true)}}
-async function addDomain(){const domain=document.getElementById('domain').value.trim(),destination=document.getElementById('destination').value.trim();if(!domain)return msg('Domain is required.',true);try{await api('/admin/api/domains',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,destination_email:destination})});document.getElementById('domain').value='';document.getElementById('destination').value='';msg('Domain added successfully.');await load()}catch(e){msg(e.message,true)}}
-async function toggleDomain(domain,active){try{await api('/admin/api/domains/'+domain,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:active})});msg(active?'Domain enabled.':'Domain disabled.');await load()}catch(e){msg(e.message,true)}}
-async function addDestination(domain){const el=document.getElementById('dest-'+decodeURIComponent(domain)),destination=el.value.trim();if(!destination)return msg('Destination email is required.',true);try{await api('/admin/api/domains/'+domain+'/destinations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destination_email:destination})});el.value='';msg('Destination added.');await load()}catch(e){msg(e.message,true)}}
-async function removeDestination(id){if(!confirm('Remove this Gmail copy destination?'))return;try{await api('/admin/api/destinations/'+encodeURIComponent(id),{method:'DELETE'});msg('Destination removed.');await load()}catch(e){msg(e.message,true)}}
-document.getElementById('addBtn').onclick=addDomain;load();
-</script></body></html>`;
-	return c.html(html);
-});
-
-/* =========================================================
    DOMAIN API
 ========================================================= */
 
