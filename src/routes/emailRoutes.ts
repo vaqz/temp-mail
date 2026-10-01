@@ -359,7 +359,7 @@ emailRoutes.openapi(getDomainsRoute, async (c) => {
 	);
 
 	return c.json(
-		OK(["vaqzmobiz.com"]),
+		OK(["vaqzmobiz.com", "vmhub.top"]),
 	);
 });
 
