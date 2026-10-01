@@ -53,6 +53,10 @@ export const DOMAINS = [
 		owner: "Vaqz",
 		domain: "vaqzmobiz.com",
 	},
+	{
+		owner: "Vaqz",
+		domain: "vmhub.top",
+	},
 ] satisfies {
 	owner: string;
 	domain: string;
