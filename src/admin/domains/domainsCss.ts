@@ -1,30 +1,10 @@
 export const DOMAINS_CSS = `
-*{box-sizing:border-box}
-body{margin:0;background:#f5f7fb;color:#172033;font-family:Arial,Helvetica,sans-serif}
-.wrap{max-width:1100px;margin:auto;padding:24px}
-.card{background:#fff;border:1px solid #e5e9f2;border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.hidden{display:none}
-.muted{color:#64748b;font-size:13px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
-.field label{display:block;color:#64748b;font-size:12px;margin-bottom:6px}
-.field input{width:100%;padding:11px 12px;border:1px solid #ccd3df;border-radius:8px;font:inherit}
-.field input:focus{border-color:#2563eb;outline:none}
-button{border:0;border-radius:8px;padding:10px 13px;background:#2563eb;color:#fff;cursor:pointer;font:inherit}
-button.secondary{background:#64748b}
-button.success{background:#15803d}
-button.warning{background:#b45309}
-button.danger{background:#dc2626}
-button.small{padding:7px 9px;font-size:13px}
-.domain{border:1px solid #e5e9f2;border-radius:12px;padding:16px;margin-top:12px}
-.domain-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-.badge{display:inline-block;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:bold;background:#dcfce7;color:#166534}
-.badge.off{background:#f1f5f9;color:#475569}
-.dest{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid #edf0f5;padding:10px 0 0;margin-top:10px}
-.actions{display:flex;gap:6px;flex-wrap:wrap}
-.message{display:none;padding:10px 12px;border-radius:8px;margin:10px 0}
-.message.show{display:block}
-.ok{background:#dcfce7;color:#166534}
-.err{background:#fee2e2;color:#991b1b}
-@media(max-width:700px){.wrap{padding:12px}.form{grid-template-columns:1fr}.form button{width:100%}}
+:root{--bg:#f4f7fb;--card:#fff;--text:#14213d;--muted:#64748b;--line:#e5eaf2;--blue:#2563eb;--green:#15803d;--green-bg:#dcfce7;--amber:#b45309;--amber-bg:#fef3c7;--red:#dc2626;--red-bg:#fee2e2}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.wrap{max-width:1200px;margin:auto;padding:24px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 5px 20px rgba(15,31,75,.045)}.hidden{display:none!important}.muted{color:var(--muted);font-size:13px}h1,h2{margin:0 0 6px;letter-spacing:-.02em}h1{font-size:27px}h2{font-size:20px}
+.brand{display:flex;align-items:center;gap:12px}.brand-mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#0b2a75,#1688ff);display:grid;place-items:center;color:#fff}.brand-mark svg{width:25px;height:25px}.header{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 13px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:650;cursor:pointer;text-decoration:none}.btn.secondary{background:#64748b}.btn.success{background:var(--green)}.btn.danger{background:var(--red)}.btn.ghost{background:#eef3fb;color:#1e3a6f}.btn.small{min-height:36px;padding:7px 10px;font-size:13px}.icon-btn{width:36px;height:36px;border:0;border-radius:9px;background:#eef3fb;color:#334155;display:grid;place-items:center;cursor:pointer}.icon-btn.danger{background:var(--red-bg);color:#b91c1c}.icon-btn.warning{background:var(--amber-bg);color:#92400e}.icon-btn.success{background:var(--green-bg);color:#166534}.icon-btn svg{width:17px;height:17px}
+.notice{padding:11px 13px;border-radius:10px;margin:12px 0;display:none}.notice.show{display:block}.notice.ok{background:var(--green-bg);color:#166534}.notice.err{background:var(--red-bg);color:#991b1b}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.stat{padding:17px 18px;background:#fff;border:1px solid var(--line);border-radius:15px}.stat-value{font-size:29px;font-weight:750}.stat-label{font-size:13px;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}.field label{display:block;font-size:12px;font-weight:650;color:#64748b;margin-bottom:6px}.field input{width:100%;height:42px;padding:0 11px;border:1px solid #ccd5e2;border-radius:10px;background:#fff;outline:none}.field input:focus{border-color:#7aa7f8;box-shadow:0 0 0 3px rgba(37,99,235,.09)}
+.domain-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.domain{border:1px solid var(--line);border-radius:15px;padding:16px;background:#fff}.domain-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.domain-name{font-size:17px;font-weight:750;word-break:break-word}.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}.badge.on{background:var(--green-bg);color:#166534}.badge.off{background:#eef2f7;color:#475569}.dot{width:6px;height:6px;border-radius:50%;background:currentColor}.destinations{margin-top:15px;border-top:1px solid #edf1f6;padding-top:12px}.dest-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.dest{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f3f7}.dest:last-child{border-bottom:0}.dest-email{font-size:13px;word-break:break-all}.dest-actions{display:flex;gap:5px}.add-destination{display:flex;gap:8px;margin-top:10px}.add-destination input{flex:1;min-width:0;height:40px;padding:0 10px;border:1px solid #ccd5e2;border-radius:9px}.empty{padding:28px;text-align:center;color:var(--muted)}.login{max-width:460px;margin:10vh auto}.login .btn{width:100%}
+@media(max-width:800px){.wrap{padding:14px}.domain-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.form{grid-template-columns:1fr}.form .btn{width:100%}.header .actions{width:100%}.header .actions .btn{flex:1}}
+@media(max-width:500px){.domain-head{flex-direction:column}.domain-head .actions{width:100%}.domain-head .actions .btn{flex:1}.add-destination{flex-direction:column}.add-destination .btn{width:100%}}
 `;
