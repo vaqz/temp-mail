@@ -1,4 +1,5 @@
 import adminRoutes from "@/routes/adminRoutes";
+import domainManagerUiRoutes from "@/routes/domainManagerUiRoutes";
 import domainRoutes from "@/routes/domainRoutes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import attachmentRoutes from "@/routes/attachmentRoutes";
@@ -13,25 +14,23 @@ import { ERR } from "./utils/http";
 
 const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
-// --- Middlewares ---
 app.use(corsMiddleware);
 
-// --- Error handling ---
 app.onError((err, c) => {
 	logError(`Unhandled error: ${err.message}`, err);
 	return c.json(ERR(err.name, err.message), 500);
 });
 
-// --- Routes ---
 app.route("/", emailRoutes);
 app.route("/", attachmentRoutes);
 app.route("/", adminRoutes);
+// UI route is mounted before the API route so /admin/domains is the token-based manager page.
+app.route("/", domainManagerUiRoutes);
 app.route("/", domainRoutes);
 app.route("/", syncRoutes);
 app.route("/", authRoutes);
 app.route("/", healthRoutes);
 
-// --- OpenAPI Documentation ---
 setupDocumentation(app);
 
 export default app;
