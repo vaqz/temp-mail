@@ -1,7 +1,7 @@
 import { cors } from "hono/cors";
 
 const corsMiddleware = cors({
-	origin: "https://mail.vaqzmobiz.com",
+	origin: "https://test.vaqzmobiz.com",
 	allowMethods: [
 		"GET",
 		"POST",
