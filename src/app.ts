@@ -1,3 +1,4 @@
+import adminDashboardUiRoutes from "@/routes/adminDashboardUiRoutes";
 import adminRoutes from "@/routes/adminRoutes";
 import domainRoutes from "@/routes/domainRoutes";
 import domainManagerUiRoutes from "@/routes/domainManagerUiRoutes";
@@ -23,6 +24,7 @@ app.onError((err, c) => {
 
 app.route("/", emailRoutes);
 app.route("/", attachmentRoutes);
+app.route("/", adminDashboardUiRoutes);
 app.route("/", adminRoutes);
 app.route("/", domainManagerUiRoutes);
 app.route("/", domainRoutes);
