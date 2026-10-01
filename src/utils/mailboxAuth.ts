@@ -10,7 +10,10 @@ const SESSION_COOKIE_NAME = "vm_mailbox_session";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
-const ALLOWED_DOMAIN = "@vaqzmobiz.com";
+const ALLOWED_DOMAINS = [
+	"@vaqzmobiz.com",
+	"@vmhub.top",
+];
 
 interface MailboxSession {
 	id: string;
@@ -191,7 +194,7 @@ export async function loginMailbox(
 > {
 	const normalizedEmail = normalizeEmail(email);
 
-	if (!normalizedEmail.endsWith(ALLOWED_DOMAIN)) {
+	if (!ALLOWED_DOMAINS.some((domain) => normalizedEmail.endsWith(domain))) {
 		return {
 			success: false,
 			error: "Invalid email or password",
