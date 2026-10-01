@@ -1,16 +1,13 @@
 import app from "@/app";
 
-import { handleEmail } from "@/handlers/emailHandler";
+import { handleMailboxEmail } from "@/handlers/mailboxEmailHandler";
 import { handleScheduled } from "@/handlers/scheduledHandler";
 
 export default {
-	// Hono ( Cloudflare Worker )
 	fetch: app.fetch,
 
-	// Cloudflare email router
-	email: handleEmail,
+	email: handleMailboxEmail,
 
-	// Cloudflare Scheduled Functions
 	scheduled: (event: ScheduledEvent, env: CloudflareBindings, ctx: ExecutionContext) => {
 		switch (event.cron) {
 			case "0 */2 * * *":
