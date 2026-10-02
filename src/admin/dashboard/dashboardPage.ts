@@ -5,13 +5,14 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0f2b75">
 <title>Vaqz Mobiz Mail · Administration</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/admin/assets/dashboard.css">
 </head>
 <body>
 <div class="wrap">
   <section id="loginScreen" class="card login">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">${""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v13H4z"/><path d="m4 7 8 6 8-6"/></svg></div>
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v13H4z"/><path d="m4 7 8 6 8-6"/></svg></div>
       <div><h1>Vaqz Mobiz Mail</h1><div class="brand-sub">Administration</div></div>
     </div>
     <p class="muted" style="margin:18px 0">Administrator access is required to manage mailboxes, visibility and rules.</p>
@@ -28,10 +29,10 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
           <div><h1>Mail Administration</h1><div class="brand-sub">Manage mail visibility, automatic rules and mailbox operations.</div></div>
         </div>
         <div class="header-actions">
-          <button id="syncBtn" class="btn success"><span class="ico">↻</span> Sync</button>
-          <a href="/admin/domains" class="btn ghost">Domains</a>
-          <button id="refreshBtn" class="btn ghost">Refresh</button>
-          <button id="logoutBtn" class="btn danger">Logout</button>
+          <button id="syncBtn" class="btn success top-icon" aria-label="Sync mailboxes" title="Sync mailboxes">Sync</button>
+          <a href="/admin/domains" class="btn ghost top-icon" aria-label="Mailbox domains" title="Mailbox domains">Domains</a>
+          <button id="refreshBtn" class="btn ghost top-icon" aria-label="Refresh dashboard" title="Refresh dashboard">Refresh</button>
+          <button id="logoutBtn" class="btn danger top-icon" aria-label="Logout" title="Logout">Logout</button>
         </div>
       </div>
       <div id="syncStatus" class="muted" style="margin-top:9px"></div>
@@ -76,8 +77,39 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 
 <div id="emailModal" class="modal" aria-hidden="true"><div class="modal-box"><div class="modal-head"><div><h2 id="emailModalTitle">Email</h2><div class="muted">Authenticated message preview</div></div><button id="closeEmailBtn" class="icon-btn" title="Close">×</button></div><div id="emailMeta" class="email-meta"></div><div id="emailContent"></div><div class="modal-actions"><button id="closeEmailBtn2" class="btn secondary">Close</button></div></div></div>
 
-<div id="ruleModal" class="modal" aria-hidden="true"><div class="modal-box" style="max-width:620px"><div class="modal-head"><div><h2>Make Public + Future Similar</h2><div class="muted">Make this message public and create an automatic rule.</div></div><button id="cancelRuleBtnTop" class="icon-btn" title="Close">×</button></div><div class="field"><label>Sender</label><input id="modalSender" readonly></div><div class="field" style="margin-top:10px"><label>Recipient</label><input id="modalRecipient" readonly></div><div class="field" style="margin-top:10px"><label>Subject keyword / phrase</label><input id="modalSubject" placeholder="Verification code"></div><div class="modal-actions"><button id="cancelRuleBtn" class="btn secondary">Cancel</button><button id="confirmRuleBtn" class="btn success">Make Public & Create Rule</button></div></div></div>
+<div id="ruleModal" class="modal" aria-hidden="true"><div class="modal-box" style="max-width:620px"><div class="modal-head"><div><h2>Make Public + Future Similar</h2><div class="muted">Make this message public and create an automatic rule.</div></div><button id="cancelRuleBtnTop" class="icon-btn" title="Close">×</button></div><div class="field"><label for="modalSender">Sender</label><input id="modalSender" autocomplete="off"></div><div class="field" style="margin-top:10px"><label for="modalRecipient">Recipient</label><input id="modalRecipient" autocomplete="off"></div><div class="field" style="margin-top:10px"><label for="modalSubject">Subject keyword / phrase</label><input id="modalSubject" placeholder="Verification code"></div><div class="modal-actions"><button id="cancelRuleBtn" class="btn secondary">Cancel</button><button id="confirmRuleBtn" class="btn success">Make Public & Create Rule</button></div></div></div>
 
 <script src="/admin/assets/dashboard.js" defer></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var key = "vm_admin_token";
+  var stored = sessionStorage.getItem(key) || "";
+  var input = document.getElementById("tokenInput");
+  var loginButton = document.getElementById("loginBtn");
+  var app = document.getElementById("app");
+  var logoutButton = document.getElementById("logoutBtn");
+
+  if (loginButton) {
+    loginButton.addEventListener("click", function () {
+      var value = input ? input.value.trim() : "";
+      if (!value) return;
+      window.setTimeout(function () {
+        if (app && !app.classList.contains("hidden")) sessionStorage.setItem(key, value);
+      }, 100);
+    });
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener("click", function () {
+      sessionStorage.removeItem(key);
+    });
+  }
+
+  if (stored && input && loginButton) {
+    input.value = stored;
+    window.setTimeout(function () { loginButton.click(); }, 0);
+  }
+});
+</script>
 </body>
 </html>`;
