@@ -12,10 +12,9 @@ import { logError } from "@/utils/logger";
 import corsMiddleware from "./middlewares/cors";
 import healthRoutes from "./routes/healthRoutes";
 import { ERR } from "./utils/http";
+import { FAVICON_SVG } from "./config/favicon";
 
 const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
-
-const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#2563eb"/><path d="M14 18h36v28H14z" fill="none" stroke="#fff" stroke-width="4"/><path d="m14 21 18 14 18-14" fill="none" stroke="#fff" stroke-width="4"/></svg>`;
 
 app.use(corsMiddleware);
 
