@@ -15,7 +15,16 @@ import { ERR } from "./utils/http";
 
 const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#2563eb"/><path d="M14 18h36v28H14z" fill="none" stroke="#fff" stroke-width="4"/><path d="m14 21 18 14 18-14" fill="none" stroke="#fff" stroke-width="4"/></svg>`;
+
 app.use(corsMiddleware);
+
+app.get("/favicon.svg", (c) =>
+	c.body(FAVICON_SVG, 200, {
+		"Content-Type": "image/svg+xml; charset=UTF-8",
+		"Cache-Control": "public, max-age=86400",
+	}),
+);
 
 app.onError((err, c) => {
 	logError(`Unhandled error: ${err.message}`, err);
