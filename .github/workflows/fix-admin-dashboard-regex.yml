@@ -1,0 +1,38 @@
+name: One-time admin dashboard regex fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'chore: apply admin dashboard regex fix'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch unsafe URL regex inside template literal
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/admin/dashboard/dashboardJs.ts')
+          text = path.read_text()
+          old = '    if (/^(https?:\\\\/\\\\/|mailto:|tel:)/i.test(href)) {'
+          new = '    if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:") || href.startsWith("tel:")) {'
+          if old not in text:
+              raise SystemExit('Target regex was not found; refusing to modify the file.')
+          path.write_text(text.replace(old, new, 1))
+
+      - name: Remove one-time workflow and commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-admin-dashboard-regex.yml
+          git add src/admin/dashboard/dashboardJs.ts .github/workflows/fix-admin-dashboard-regex.yml
+          git commit -m "chore: apply admin dashboard regex fix"
+          git push
