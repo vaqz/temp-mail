@@ -26,12 +26,20 @@ adminDashboardUiRoutes.get("/admin/assets/dashboard.css", (c) =>
 	}),
 );
 
-adminDashboardUiRoutes.get("/admin/assets/dashboard.js", (c) =>
-	c.body(ADMIN_DASHBOARD_JS, 200, {
+adminDashboardUiRoutes.get("/admin/assets/dashboard.js", (c) => {
+	// dashboardJs.ts is intentionally kept as a template literal. A URL regex
+	// containing escaped slashes can be reinterpreted when that template is
+	// emitted as JavaScript, so normalize that one expression before sending it.
+	const safeDashboardJs = ADMIN_DASHBOARD_JS.replace(
+		'if (/^(https?:\\/\\/|mailto:|tel:)/i.test(href)) {',
+		'if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:") || href.startsWith("tel:")) {',
+	);
+
+	return c.body(safeDashboardJs, 200, {
 		"Content-Type": "application/javascript; charset=UTF-8",
 		"Cache-Control": "no-store",
-	}),
-);
+	});
+});
 
 adminDashboardUiRoutes.get("/admin/api/emails", async (c) => {
 	if (!authorized(c)) return unauthorized(c);
@@ -46,7 +54,7 @@ adminDashboardUiRoutes.get("/admin/api/emails", async (c) => {
 		const search = (url.searchParams.get("search") || "").trim();
 		const visibility = url.searchParams.get("visibility") || "all";
 
-		if (!['all', 'public', 'private'].includes(visibility)) {
+		if (!["all", "public", "private"].includes(visibility)) {
 			return c.json({ error: { message: "Invalid visibility filter" } }, 400);
 		}
 
