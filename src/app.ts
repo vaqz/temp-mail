@@ -12,17 +12,14 @@ import { logError } from "@/utils/logger";
 import corsMiddleware from "./middlewares/cors";
 import healthRoutes from "./routes/healthRoutes";
 import { ERR } from "./utils/http";
-import {
-	FAVICON_MIME,
-	FAVICON_SVG,
-} from "./config/favicon";
+import { FAVICON_SVG } from "./config/favicon";
 
 const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
 app.use(corsMiddleware);
 
 const faviconHeaders = {
-	"Content-Type": `${FAVICON_MIME}; charset=UTF-8`,
+	"Content-Type": "image/svg+xml; charset=UTF-8",
 	"Cache-Control": "public, max-age=86400",
 };
 
