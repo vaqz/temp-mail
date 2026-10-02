@@ -10,46 +10,632 @@ const rulePageSize = 8;
 let selectedEmailId = "";
 let searchTimer = null;
 
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
+
 const ICONS = {
-  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>',
-  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>',
-  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
-  unlock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7-2.5"/></svg>',
-  rule:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>'
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  unlock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7-2.5"/></svg>',
+  rule: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>'
 };
 
-function notice(text,type){const e=$("globalMessage");e.textContent=String(text||"");e.className="notice show "+(type||"ok");setTimeout(()=>e.className="notice",4200)}
-function loginNotice(text){const e=$("loginMessage");e.textContent=String(text||"");e.className="notice show error"}
-function escapeHtml(v){return String(v==null?"":v).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;").split("'").join("&#039;")}
-function date(v){const n=Number(v);if(!Number.isFinite(n))return String(v||"-");const d=new Date(n<100000000000?n*1000:n);return Number.isNaN(d.getTime())?String(v||"-"):d.toLocaleString()}
-function relative(v){const n=Number(v);if(!Number.isFinite(n))return date(v);const ms=n<100000000000?n*1000:n,diff=Math.max(0,Date.now()-ms),m=60000,h=3600000,d=86400000;if(diff<m)return"Just now";if(diff<h)return Math.floor(diff/m)+" min ago";if(diff<d)return Math.floor(diff/h)+" hr ago";if(diff<d*7)return Math.floor(diff/d)+" d ago";return new Date(ms).toLocaleDateString()}
-async function api(path,options){const o=options||{},r=await fetch(path,Object.assign({},o,{headers:Object.assign({Authorization:"Bearer "+token},o.headers||{})}));let data=null;try{data=await r.json()}catch(_){}if(r.status===401){logout();throw new Error("Unauthorized")}if(!r.ok)throw new Error(data&&data.error&&data.error.message||"Request failed");return data}
-function login(){const v=$("tokenInput").value.trim();if(!v)return loginNotice("Please enter the admin token.");token=v;api("/admin/api/emails?page=1&pageSize=1").then(()=>{$("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");refreshAll()}).catch(e=>{token="";loginNotice(e.message||"Invalid admin token.")})}
-function logout(){token="";selectedIds.clear();$("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");$("tokenInput").value=""}
-function action(icon,title,cls,fn){const b=document.createElement("button");b.className="icon-btn "+(cls||"");b.title=title;b.setAttribute("aria-label",title);b.innerHTML=icon;b.onclick=fn;return b}
-function selectionUi(){const n=selectedIds.size;$("selectionBar").classList.toggle("hidden",n===0);$("selectionCount").textContent=n+(n===1?" email selected":" emails selected");$("selectAll").checked=currentEmails.length>0&&currentEmails.every(e=>selectedIds.has(String(e.id)))}
-function renderRow(e){const row=document.createElement("tr");const c=document.createElement("td"),cb=document.createElement("input");cb.type="checkbox";cb.className="checkbox";cb.checked=selectedIds.has(String(e.id));cb.onchange=()=>{cb.checked?selectedIds.add(String(e.id)):selectedIds.delete(String(e.id));selectionUi()};c.appendChild(cb);row.appendChild(c);[["from_address","address"],["to_address","address"],["subject","subject"]].forEach(([key,cls])=>{const x=document.createElement("td");x.className=cls;x.textContent=String(e[key]||"(No subject)");x.title=x.textContent;row.appendChild(x)});const dt=document.createElement("td");dt.innerHTML='<div class="date-main">'+escapeHtml(relative(e.received_at))+'</div><div class="date-sub">'+escapeHtml(date(e.received_at))+'</div>';row.appendChild(dt);const vis=document.createElement("td");vis.innerHTML=e.is_public?'<span class="badge public"><span class="dot"></span>PUBLIC</span>':'<span class="badge private"><span class="dot"></span>PRIVATE</span>';row.appendChild(vis);const ac=document.createElement("td"),box=document.createElement("div");box.className="row-actions";box.appendChild(action(ICONS.eye,"Read email","",()=>openEmail(e.id)));if(e.is_public)box.appendChild(action(ICONS.lock,"Make private","warning",()=>visibility(e.id,false)));else{box.appendChild(action(ICONS.unlock,"Make public","success",()=>visibility(e.id,true)));box.appendChild(action(ICONS.rule,"Make public and create future rule","",()=>openRuleModal(e.id,e.from_address,e.to_address,e.subject)))}box.appendChild(action(ICONS.trash,"Delete email","danger",()=>deleteOne(e.id)));ac.appendChild(box);row.appendChild(ac);return row}
-function renderMobile(e){const box=document.createElement("div");box.className="mobile-email";const top=document.createElement("div");top.className="mobile-top";const cb=document.createElement("input");cb.type="checkbox";cb.className="checkbox";cb.checked=selectedIds.has(String(e.id));cb.onchange=()=>{cb.checked?selectedIds.add(String(e.id)):selectedIds.delete(String(e.id));selectionUi()};top.appendChild(cb);const badge=document.createElement("span");badge.className=e.is_public?"badge public":"badge private";badge.innerHTML='<span class="dot"></span>'+(e.is_public?"PUBLIC":"PRIVATE");top.appendChild(badge);box.appendChild(top);const s=document.createElement("div");s.className="mobile-subject";s.textContent=String(e.subject||"(No subject)");box.appendChild(s);["from_address","to_address"].forEach(k=>{const x=document.createElement("div");x.className="mobile-line";x.textContent=(k==="from_address"?"From: ":"To: ")+String(e[k]||"-");box.appendChild(x)});const dt=document.createElement("div");dt.className="mobile-line";dt.textContent=relative(e.received_at)+" · "+date(e.received_at);box.appendChild(dt);const a=document.createElement("div");a.className="mobile-actions";a.appendChild(action(ICONS.eye,"Read email","",()=>openEmail(e.id)));a.appendChild(action(ICONS.trash,"Delete email","danger",()=>deleteOne(e.id)));box.appendChild(a);return box}
-function pagination(total){const pages=Math.max(1,Math.ceil(total/pageSize));$("pageInfo").textContent=total?"Showing "+((page-1)*pageSize+1)+"–"+Math.min(page*pageSize,total)+" of "+total:"No emails found";$("prevPage").disabled=page<=1;$("nextPage").disabled=page>=pages;const p=$("pageNumbers");p.innerHTML="";for(let n=Math.max(1,page-2);n<=Math.min(pages,page+2);n++){const b=document.createElement("button");b.className="page-btn"+(n===page?" active":"");b.textContent=n;b.onclick=()=>{page=n;loadEmails()};p.appendChild(b)}}
-async function loadEmails(){const q=new URLSearchParams({page:String(page),pageSize:String(pageSize),visibility:$("visibilityFilter").value});const s=$("emailSearch").value.trim();if(s)q.set("search",s);const d=await api("/admin/api/emails?"+q);currentEmails=d.items||[];$("totalCount").textContent=d.total||0;$("publicCount").textContent=d.publicCount||0;$("privateCount").textContent=d.privateCount||0;const body=$("emailsBody"),mobile=$("mobileList");body.innerHTML="";mobile.innerHTML="";if(!currentEmails.length){body.innerHTML='<tr><td colspan="7" class="empty">No emails match your search.</td></tr>';mobile.innerHTML='<div class="empty">No emails match your search.</div>'}else currentEmails.forEach(e=>{body.appendChild(renderRow(e));mobile.appendChild(renderMobile(e))});pagination(Number(d.total||0));selectionUi()}
-async function loadRules(){const d=await api("/admin/rules");rules=(d&&d.data)||d||[];rulePage=1;renderRules();$("ruleCount").textContent=rules.length+" rule"+(rules.length===1?"":"s")}
-function renderRules(){const term=$("ruleSearch").value.trim().toLowerCase(),f=rules.filter(r=>(String(r.sender_pattern||"")+" "+String(r.recipient_pattern||"")+" "+String(r.subject_pattern||"")).toLowerCase().includes(term)),pages=Math.max(1,Math.ceil(f.length/rulePageSize));if(rulePage>pages)rulePage=pages;const start=(rulePage-1)*rulePageSize,list=$("rulesList");list.innerHTML="";f.slice(start,start+rulePageSize).forEach(r=>{const item=document.createElement("div");item.className="rule-item";const summary=document.createElement("div");summary.className="rule-summary";summary.innerHTML='<div><div class="rule-label">Sender</div><div class="rule-value">'+escapeHtml(r.sender_pattern||"All senders")+'</div></div><div><div class="rule-label">Recipient</div><div class="rule-value">'+escapeHtml(r.recipient_pattern||"All mailboxes")+'</div></div><div><div class="rule-label">Subject contains</div><div class="rule-value">'+escapeHtml(r.subject_pattern||"")+'</div></div>';const a=document.createElement("div");a.className="rule-actions";a.appendChild(action(ICONS.trash,"Delete rule","danger",()=>deleteRule(r.id)));summary.appendChild(a);item.appendChild(summary);list.appendChild(item)});if(!f.length)list.innerHTML='<div class="empty">No automatic rules found.</div>';$("rulePageInfo").textContent=f.length?"Showing "+(start+1)+"–"+Math.min(start+rulePageSize,f.length)+" of "+f.length:"No rules";$("rulePrev").disabled=rulePage<=1;$("ruleNext").disabled=rulePage>=pages}
-function sanitizeEmailDocument(html){const doc=new DOMParser().parseFromString(String(html||""),"text/html");doc.querySelectorAll("script,noscript,iframe,object,embed,form,input,button,base,meta[http-equiv],link[rel=import]").forEach(function(el){el.remove()});doc.querySelectorAll("*").forEach(function(el){Array.from(el.attributes).forEach(function(attr){if(/^on/i.test(attr.name))el.removeAttribute(attr.name)})});doc.querySelectorAll("a[href]").forEach(function(a){let href=(a.getAttribute("href")||"").trim();if(/^javascript:|^vbscript:|^data:/i.test(href)){a.removeAttribute("href");return}if(href.startsWith("//"))href="https:"+href;if(/^https?:\/\//i.test(href)||/^mailto:/i.test(href)||/^tel:/i.test(href)){a.setAttribute("href",href);a.setAttribute("target","_blank");a.setAttribute("rel","noopener noreferrer")}});const styles=Array.from(doc.querySelectorAll("style")).map(function(style){return style.textContent||""}).join("\n");doc.querySelectorAll("style").forEach(function(style){style.remove()});return{styles:styles,body:doc.body.innerHTML}}
-async function openEmail(id){try{const d=await api("/admin/emails/"+encodeURIComponent(id)),e=d&&d.data||d;if(!e)throw new Error("Email not found");$("emailModalTitle").textContent=String(e.subject||"Email");const m=$("emailMeta");m.innerHTML="";[["From",e.from_address],["To",e.to_address],["Received",date(e.received_at)],["Attachments",String(e.attachment_count||0)]].forEach(p=>{const x=document.createElement("div");x.className="meta-item";x.innerHTML='<div class="meta-label">'+escapeHtml(p[0])+'</div><div class="meta-value">'+escapeHtml(p[1]||"")+'</div>';m.appendChild(x)});const c=$("emailContent");c.innerHTML="";if(e.html_content&&String(e.html_content).trim()){const clean=sanitizeEmailDocument(e.html_content);const f=document.createElement("iframe");f.className="email-viewer";f.setAttribute("sandbox","allow-popups allow-popups-to-escape-sandbox");f.setAttribute("title","Email message");f.referrerPolicy="no-referrer";f.srcdoc='<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+'<style>'+clean.styles+'\nhtml,body{margin:0;padding:0;background:#fff}body{max-width:100%;overflow-x:auto}img{max-width:100%;height:auto}table{max-width:100%}#vaqz-email-root{max-width:100%;overflow-x:auto}</style>'+'</head><body><div id="vaqz-email-root">'+clean.body+'</div></body></html>';c.appendChild(f)}else if(e.text_content&&String(e.text_content).trim()){const p=document.createElement("pre");p.className="email-text";p.textContent=String(e.text_content);c.appendChild(p)}else c.innerHTML='<div class="empty">No message content available.</div>';$("emailModal").classList.add("show")}catch(e){notice(e.message||"Failed to open email.","error")}}
-function closeEmail(){$("emailModal").classList.remove("show");$("emailContent").innerHTML=""}
-async function visibility(id,value){try{await api("/admin/emails/"+encodeURIComponent(id)+"/visibility",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({is_public:value})});notice(value?"Email is now public.":"Email is now private.");await loadEmails()}catch(e){notice(e.message,"error")}}
-async function deleteOne(id){if(!confirm("Delete this email permanently?"))return;try{await api("/admin/emails/"+encodeURIComponent(id),{method:"DELETE"});selectedIds.delete(String(id));notice("Email deleted.");await loadEmails()}catch(e){notice(e.message,"error")}}
-async function bulkDelete(){const ids=Array.from(selectedIds);if(!ids.length)return;if(!confirm("Delete "+ids.length+" selected email"+(ids.length===1?"":"s")+" permanently?"))return;const b=$("bulkDeleteBtn");b.disabled=true;try{const d=await api("/admin/api/emails/bulk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})});selectedIds.clear();notice((d.deleted||ids.length)+" email"+((d.deleted||ids.length)===1?"":"s")+" deleted.");await loadEmails()}catch(e){notice(e.message,"error")}finally{b.disabled=false}}
-function openRuleModal(id,s,r,subject){selectedEmailId=String(id||"");$("modalSender").value=String(s||"");$("modalRecipient").value=String(r||"");$("modalSubject").value=String(subject||"");$("ruleModal").classList.add("show");$("modalSubject").focus()}
-function closeRuleModal(){selectedEmailId="";$("ruleModal").classList.remove("show")}
-async function confirmRule(){const s=$("modalSender").value.trim(),r=$("modalRecipient").value.trim(),subject=$("modalSubject").value.trim();if(!s||!r||!subject)return notice("Sender, recipient and subject phrase are required.","error");try{await visibility(selectedEmailId,true);await api("/admin/rules",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sender_pattern:s,recipient_pattern:r,subject_pattern:subject})});closeRuleModal();notice("Email is public and the future-matching rule was created.");await refreshAll()}catch(e){notice(e.message,"error")}}
-async function addRule(){const s=$("newRuleSender").value.trim(),r=$("newRuleRecipient").value.trim(),subject=$("newRuleSubject").value.trim();if(!subject)return notice("Subject phrase is required.","error");try{await api("/admin/rules",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sender_pattern:s,recipient_pattern:r||null,subject_pattern:subject})});$("newRuleSender").value="";$("newRuleRecipient").value="";$("newRuleSubject").value="";notice("Automatic public rule added.");await loadRules()}catch(e){notice(e.message,"error")}}
-async function deleteRule(id){if(!confirm("Delete this automatic public rule?"))return;try{await api("/admin/rules/"+encodeURIComponent(id),{method:"DELETE"});notice("Rule deleted.");await loadRules()}catch(e){notice(e.message,"error")}}
-async function syncMailboxes(){const b=$("syncBtn"),s=$("syncStatus");b.disabled=true;b.textContent="Syncing...";s.textContent="Synchronizing mailbox accounts...";try{const d=await api("/admin/sync/mailboxes",{method:"POST"}),x=d&&d.result||d||{};notice("Mailbox sync completed successfully.");s.textContent="Sync completed: created "+(x.created||0)+", updated "+(x.updated||0)+", disabled "+(x.disabled||0)+", unchanged "+(x.unchanged||0)}catch(e){notice("Mailbox sync failed: "+e.message,"error");s.textContent="Sync failed."}finally{b.disabled=false;b.textContent="↻ Sync"}}
-async function refreshAll(){try{await Promise.all([loadEmails(),loadRules()])}catch(e){notice(e.message,"error")}}
+function notice(text, type) {
+  const el = $("globalMessage");
+  if (!el) return;
+  el.textContent = String(text || "");
+  el.className = "notice show " + (type || "ok");
+  window.setTimeout(() => { el.className = "notice"; }, 4200);
+}
 
-document.addEventListener("DOMContentLoaded",()=>{
-$("loginBtn").onclick=login;$("tokenInput").onkeydown=e=>{if(e.key==="Enter")login()};$("logoutBtn").onclick=logout;$("refreshBtn").onclick=refreshAll;$("syncBtn").onclick=syncMailboxes;$("bulkDeleteBtn").onclick=bulkDelete;$("clearSelectionBtn").onclick=()=>{selectedIds.clear();loadEmails()};$("selectAll").onchange=e=>{currentEmails.forEach(x=>e.target.checked?selectedIds.add(String(x.id)):selectedIds.delete(String(x.id)));selectionUi();loadEmails()};$("visibilityFilter").onchange=()=>{page=1;loadEmails()};$("pageSize").onchange=()=>{page=1;pageSize=Number($("pageSize").value)||50;loadEmails()};$("emailSearch").oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{page=1;loadEmails()},300)};$("prevPage").onclick=()=>{if(page>1){page--;loadEmails()}};$("nextPage").onclick=()=>{page++;loadEmails()};$("ruleSearch").oninput=()=>{rulePage=1;renderRules()};$("rulePrev").onclick=()=>{if(rulePage>1){rulePage--;renderRules()}};$("ruleNext").onclick=()=>{rulePage++;renderRules()};$("addRuleBtn").onclick=addRule;$("confirmRuleBtn").onclick=confirmRule;$("cancelRuleBtn").onclick=closeRuleModal;$("cancelRuleBtnTop").onclick=closeRuleModal;$("closeEmailBtn").onclick=closeEmail;$("closeEmailBtn2").onclick=closeEmail;$("emailModal").onclick=e=>{if(e.target.id==="emailModal")closeEmail()};$("ruleModal").onclick=e=>{if(e.target.id==="ruleModal")closeRuleModal()};document.onkeydown=e=>{if(e.key==="Escape"){closeEmail();closeRuleModal()}};
-});
+function loginNotice(text, type) {
+  const el = $("loginMessage");
+  if (!el) return;
+  el.textContent = String(text || "");
+  el.className = "notice show " + (type || "error");
+}
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .split("&").join("&amp;")
+    .split("<").join("&lt;")
+    .split(">").join("&gt;")
+    .split('"').join("&quot;")
+    .split("'").join("&#039;");
+}
+
+function date(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value || "-");
+  const dateValue = new Date(numeric < 100000000000 ? numeric * 1000 : numeric);
+  return Number.isNaN(dateValue.getTime()) ? String(value || "-") : dateValue.toLocaleString();
+}
+
+function relative(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return date(value);
+  const milliseconds = numeric < 100000000000 ? numeric * 1000 : numeric;
+  const difference = Math.max(0, Date.now() - milliseconds);
+  const minute = 60000;
+  const hour = 3600000;
+  const day = 86400000;
+  if (difference < minute) return "Just now";
+  if (difference < hour) return Math.floor(difference / minute) + " min ago";
+  if (difference < day) return Math.floor(difference / hour) + " hr ago";
+  if (difference < day * 7) return Math.floor(difference / day) + " d ago";
+  return new Date(milliseconds).toLocaleDateString();
+}
+
+async function api(path, options) {
+  const requestOptions = options || {};
+  const headers = Object.assign(
+    { Authorization: "Bearer " + token },
+    requestOptions.headers || {}
+  );
+
+  const response = await fetch(path, Object.assign({}, requestOptions, { headers }));
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch (_) {
+    data = null;
+  }
+
+  if (response.status === 401) {
+    logout();
+    throw new Error("Unauthorized. Please check the admin token.");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      (data && data.error && data.error.message) ||
+      (data && data.message) ||
+      "Request failed (HTTP " + response.status + ")"
+    );
+  }
+
+  return data;
+}
+
+async function login() {
+  const input = $("tokenInput");
+  const button = $("loginBtn");
+  const value = input ? input.value.trim() : "";
+
+  if (!value) {
+    loginNotice("Please enter the admin token.");
+    if (input) input.focus();
+    return;
+  }
+
+  token = value;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Authenticating...";
+  }
+  loginNotice("Checking administrator access...", "ok");
+
+  try {
+    await api("/admin/api/emails?page=1&pageSize=1");
+    $("loginScreen").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    if (input) input.value = "";
+    await refreshAll();
+  } catch (error) {
+    token = "";
+    loginNotice(error && error.message ? error.message : "Unable to authenticate.");
+    if (input) input.focus();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Open Administration";
+    }
+  }
+}
+
+function logout() {
+  token = "";
+  selectedIds.clear();
+  const app = $("app");
+  const loginScreen = $("loginScreen");
+  const input = $("tokenInput");
+  if (app) app.classList.add("hidden");
+  if (loginScreen) loginScreen.classList.remove("hidden");
+  if (input) input.value = "";
+}
+
+function action(icon, title, className, handler) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "icon-btn " + (className || "");
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  button.innerHTML = icon;
+  button.addEventListener("click", handler);
+  return button;
+}
+
+function selectionUi() {
+  const count = selectedIds.size;
+  const bar = $("selectionBar");
+  const label = $("selectionCount");
+  const selectAll = $("selectAll");
+  if (bar) bar.classList.toggle("hidden", count === 0);
+  if (label) label.textContent = count + (count === 1 ? " email selected" : " emails selected");
+  if (selectAll) selectAll.checked = currentEmails.length > 0 && currentEmails.every((email) => selectedIds.has(String(email.id)));
+}
+
+function renderRow(email) {
+  const row = document.createElement("tr");
+  const selectCell = document.createElement("td");
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "checkbox";
+  checkbox.checked = selectedIds.has(String(email.id));
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) selectedIds.add(String(email.id));
+    else selectedIds.delete(String(email.id));
+    selectionUi();
+  });
+  selectCell.appendChild(checkbox);
+  row.appendChild(selectCell);
+
+  [["from_address", "address"], ["to_address", "address"]].forEach(([key, className]) => {
+    const cell = document.createElement("td");
+    cell.className = className;
+    cell.textContent = String(email[key] || "-");
+    cell.title = cell.textContent;
+    row.appendChild(cell);
+  });
+
+  const subjectCell = document.createElement("td");
+  subjectCell.className = "subject";
+  const subjectButton = document.createElement("button");
+  subjectButton.type = "button";
+  subjectButton.className = "subject-link";
+  subjectButton.textContent = String(email.subject || "(No subject)");
+  subjectButton.title = "Open email";
+  subjectButton.addEventListener("click", () => openEmail(email.id));
+  subjectCell.appendChild(subjectButton);
+  row.appendChild(subjectCell);
+
+  const receivedCell = document.createElement("td");
+  receivedCell.innerHTML = '<div class="date-main">' + escapeHtml(relative(email.received_at)) + '</div><div class="date-sub">' + escapeHtml(date(email.received_at)) + '</div>';
+  row.appendChild(receivedCell);
+
+  const visibilityCell = document.createElement("td");
+  visibilityCell.innerHTML = email.is_public
+    ? '<span class="badge public"><span class="dot"></span>PUBLIC</span>'
+    : '<span class="badge private"><span class="dot"></span>PRIVATE</span>';
+  row.appendChild(visibilityCell);
+
+  const actionsCell = document.createElement("td");
+  const actions = document.createElement("div");
+  actions.className = "row-actions";
+  if (email.is_public) {
+    actions.appendChild(action(ICONS.lock, "Make private", "warning", () => visibility(email.id, false)));
+  } else {
+    actions.appendChild(action(ICONS.unlock, "Make public", "success", () => visibility(email.id, true)));
+    actions.appendChild(action(ICONS.rule, "Make public and create future rule", "", () => openRuleModal(email.id, email.from_address, email.to_address, email.subject)));
+  }
+  actions.appendChild(action(ICONS.trash, "Delete email", "danger", () => deleteOne(email.id)));
+  actionsCell.appendChild(actions);
+  row.appendChild(actionsCell);
+  return row;
+}
+
+function renderMobile(email) {
+  const box = document.createElement("div");
+  box.className = "mobile-email";
+  const top = document.createElement("div");
+  top.className = "mobile-top";
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "checkbox";
+  checkbox.checked = selectedIds.has(String(email.id));
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) selectedIds.add(String(email.id));
+    else selectedIds.delete(String(email.id));
+    selectionUi();
+  });
+  top.appendChild(checkbox);
+  const badge = document.createElement("span");
+  badge.className = email.is_public ? "badge public" : "badge private";
+  badge.innerHTML = '<span class="dot"></span>' + (email.is_public ? "PUBLIC" : "PRIVATE");
+  top.appendChild(badge);
+  box.appendChild(top);
+
+  const subject = document.createElement("button");
+  subject.type = "button";
+  subject.className = "subject-link mobile-subject";
+  subject.textContent = String(email.subject || "(No subject)");
+  subject.addEventListener("click", () => openEmail(email.id));
+  box.appendChild(subject);
+
+  ["from_address", "to_address"].forEach((key) => {
+    const line = document.createElement("div");
+    line.className = "mobile-line";
+    line.textContent = (key === "from_address" ? "From: " : "To: ") + String(email[key] || "-");
+    box.appendChild(line);
+  });
+
+  const received = document.createElement("div");
+  received.className = "mobile-line";
+  received.textContent = relative(email.received_at) + " · " + date(email.received_at);
+  box.appendChild(received);
+
+  const actions = document.createElement("div");
+  actions.className = "mobile-actions";
+  if (email.is_public) {
+    actions.appendChild(action(ICONS.lock, "Make private", "warning", () => visibility(email.id, false)));
+  } else {
+    actions.appendChild(action(ICONS.unlock, "Make public", "success", () => visibility(email.id, true)));
+    actions.appendChild(action(ICONS.rule, "Make public and create future rule", "", () => openRuleModal(email.id, email.from_address, email.to_address, email.subject)));
+  }
+  actions.appendChild(action(ICONS.trash, "Delete email", "danger", () => deleteOne(email.id)));
+  box.appendChild(actions);
+  return box;
+}
+
+function pagination(total) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const info = $("pageInfo");
+  if (info) info.textContent = total ? "Showing " + ((page - 1) * pageSize + 1) + "–" + Math.min(page * pageSize, total) + " of " + total : "No emails found";
+  $("prevPage").disabled = page <= 1;
+  $("nextPage").disabled = page >= pages;
+  const numbers = $("pageNumbers");
+  numbers.innerHTML = "";
+  for (let number = Math.max(1, page - 2); number <= Math.min(pages, page + 2); number += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "page-btn" + (number === page ? " active" : "");
+    button.textContent = String(number);
+    button.addEventListener("click", () => { page = number; loadEmails(); });
+    numbers.appendChild(button);
+  }
+}
+
+async function loadEmails() {
+  const filter = $("visibilityFilter");
+  const searchInput = $("emailSearch");
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize), visibility: filter ? filter.value : "all" });
+  const search = searchInput ? searchInput.value.trim() : "";
+  if (search) query.set("search", search);
+
+  const data = await api("/admin/api/emails?" + query.toString());
+  currentEmails = data.items || [];
+  $("totalCount").textContent = String(data.total || 0);
+  $("publicCount").textContent = String(data.publicCount || 0);
+  $("privateCount").textContent = String(data.privateCount || 0);
+
+  const body = $("emailsBody");
+  const mobile = $("mobileList");
+  body.innerHTML = "";
+  mobile.innerHTML = "";
+
+  if (!currentEmails.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">No emails match your search.</td></tr>';
+    mobile.innerHTML = '<div class="empty">No emails match your search.</div>';
+  } else {
+    currentEmails.forEach((email) => {
+      body.appendChild(renderRow(email));
+      mobile.appendChild(renderMobile(email));
+    });
+  }
+  pagination(Number(data.total || 0));
+  selectionUi();
+}
+
+async function loadRules() {
+  const data = await api("/admin/rules");
+  rules = (data && data.data) || data || [];
+  rulePage = 1;
+  renderRules();
+  $("ruleCount").textContent = rules.length + " rule" + (rules.length === 1 ? "" : "s");
+}
+
+function renderRules() {
+  const searchInput = $("ruleSearch");
+  const term = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const filtered = rules.filter((rule) => (String(rule.sender_pattern || "") + " " + String(rule.recipient_pattern || "") + " " + String(rule.subject_pattern || "")).toLowerCase().includes(term));
+  const pages = Math.max(1, Math.ceil(filtered.length / rulePageSize));
+  if (rulePage > pages) rulePage = pages;
+  const start = (rulePage - 1) * rulePageSize;
+  const list = $("rulesList");
+  list.innerHTML = "";
+
+  filtered.slice(start, start + rulePageSize).forEach((rule) => {
+    const item = document.createElement("div");
+    item.className = "rule-item";
+    const summary = document.createElement("div");
+    summary.className = "rule-summary";
+    summary.innerHTML = '<div><div class="rule-label">Sender</div><div class="rule-value">' + escapeHtml(rule.sender_pattern || "All senders") + '</div></div>' +
+      '<div><div class="rule-label">Recipient</div><div class="rule-value">' + escapeHtml(rule.recipient_pattern || "All mailboxes") + '</div></div>' +
+      '<div><div class="rule-label">Subject contains</div><div class="rule-value">' + escapeHtml(rule.subject_pattern || "") + '</div></div>';
+    const actions = document.createElement("div");
+    actions.className = "rule-actions";
+    actions.appendChild(action(ICONS.trash, "Delete rule", "danger", () => deleteRule(rule.id)));
+    summary.appendChild(actions);
+    item.appendChild(summary);
+    list.appendChild(item);
+  });
+
+  if (!filtered.length) list.innerHTML = '<div class="empty">No automatic rules found.</div>';
+  $("rulePageInfo").textContent = filtered.length ? "Showing " + (start + 1) + "–" + Math.min(start + rulePageSize, filtered.length) + " of " + filtered.length : "No rules";
+  $("rulePrev").disabled = rulePage <= 1;
+  $("ruleNext").disabled = rulePage >= pages;
+}
+
+function sanitizeEmailDocument(html) {
+  const documentValue = new DOMParser().parseFromString(String(html || ""), "text/html");
+  documentValue.querySelectorAll("script,noscript,iframe,object,embed,form,input,button,base,meta[http-equiv],link[rel=import]").forEach((element) => element.remove());
+  documentValue.querySelectorAll("*").forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      if (/^on/i.test(attribute.name)) element.removeAttribute(attribute.name);
+    });
+  });
+  documentValue.querySelectorAll("a[href]").forEach((anchor) => {
+    let href = (anchor.getAttribute("href") || "").trim();
+    if (/^(javascript:|vbscript:|data:)/i.test(href)) {
+      anchor.removeAttribute("href");
+      return;
+    }
+    if (href.startsWith("//")) href = "https:" + href;
+    if (/^(https?:\/\/|mailto:|tel:)/i.test(href)) {
+      anchor.setAttribute("href", href);
+      anchor.setAttribute("target", "_blank");
+      anchor.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+  const styles = Array.from(documentValue.querySelectorAll("style")).map((style) => style.textContent || "").join("\\n");
+  documentValue.querySelectorAll("style").forEach((style) => style.remove());
+  return { styles, body: documentValue.body.innerHTML };
+}
+
+async function openEmail(id) {
+  try {
+    const data = await api("/admin/emails/" + encodeURIComponent(id));
+    const email = (data && data.data) || data;
+    if (!email) throw new Error("Email not found.");
+
+    $("emailModalTitle").textContent = String(email.subject || "Email");
+    const meta = $("emailMeta");
+    meta.innerHTML = "";
+    [["From", email.from_address], ["To", email.to_address], ["Received", date(email.received_at)], ["Attachments", String(email.attachment_count || 0)]].forEach((pair) => {
+      const item = document.createElement("div");
+      item.className = "meta-item";
+      item.innerHTML = '<div class="meta-label">' + escapeHtml(pair[0]) + '</div><div class="meta-value">' + escapeHtml(pair[1] || "") + '</div>';
+      meta.appendChild(item);
+    });
+
+    const content = $("emailContent");
+    content.innerHTML = "";
+    if (email.html_content && String(email.html_content).trim()) {
+      const clean = sanitizeEmailDocument(email.html_content);
+      const frame = document.createElement("iframe");
+      frame.className = "email-viewer";
+      frame.setAttribute("sandbox", "allow-popups allow-popups-to-escape-sandbox");
+      frame.setAttribute("title", "Email message");
+      frame.referrerPolicy = "no-referrer";
+      frame.srcdoc = '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<style>' + clean.styles + '\\nhtml,body{margin:0;padding:0;background:#fff}body{max-width:100%;overflow-x:auto}img{max-width:100%;height:auto}table{max-width:100%}#vaqz-email-root{max-width:100%;overflow-x:auto}</style>' +
+        '</head><body><div id="vaqz-email-root">' + clean.body + '</div></body></html>';
+      content.appendChild(frame);
+    } else if (email.text_content && String(email.text_content).trim()) {
+      const text = document.createElement("pre");
+      text.className = "email-text";
+      text.textContent = String(email.text_content);
+      content.appendChild(text);
+    } else {
+      content.innerHTML = '<div class="empty">No message content available.</div>';
+    }
+    $("emailModal").classList.add("show");
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to open email.", "error");
+  }
+}
+
+function closeEmail() {
+  $("emailModal").classList.remove("show");
+  $("emailContent").innerHTML = "";
+}
+
+async function visibility(id, value) {
+  try {
+    await api("/admin/emails/" + encodeURIComponent(id) + "/visibility", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_public: value })
+    });
+    notice(value ? "Email is now public." : "Email is now private.");
+    await loadEmails();
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to update visibility.", "error");
+  }
+}
+
+async function deleteOne(id) {
+  if (!window.confirm("Delete this email permanently?")) return;
+  try {
+    await api("/admin/emails/" + encodeURIComponent(id), { method: "DELETE" });
+    selectedIds.delete(String(id));
+    notice("Email deleted.");
+    await loadEmails();
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to delete email.", "error");
+  }
+}
+
+async function bulkDelete() {
+  const ids = Array.from(selectedIds);
+  if (!ids.length) return;
+  if (!window.confirm("Delete " + ids.length + " selected email" + (ids.length === 1 ? "" : "s") + " permanently?")) return;
+  const button = $("bulkDeleteBtn");
+  button.disabled = true;
+  try {
+    const data = await api("/admin/api/emails/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids })
+    });
+    selectedIds.clear();
+    const deleted = Number(data.deleted || ids.length);
+    notice(deleted + " email" + (deleted === 1 ? "" : "s") + " deleted.");
+    await loadEmails();
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to delete selected emails.", "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function openRuleModal(id, sender, recipient, subject) {
+  selectedEmailId = String(id || "");
+  $("modalSender").value = String(sender || "");
+  $("modalRecipient").value = String(recipient || "");
+  $("modalSubject").value = String(subject || "");
+  $("ruleModal").classList.add("show");
+  $("modalSubject").focus();
+}
+
+function closeRuleModal() {
+  selectedEmailId = "";
+  $("ruleModal").classList.remove("show");
+}
+
+async function confirmRule() {
+  const sender = $("modalSender").value.trim();
+  const recipient = $("modalRecipient").value.trim();
+  const subject = $("modalSubject").value.trim();
+  if (!sender || !recipient || !subject) {
+    notice("Sender, recipient and subject phrase are required.", "error");
+    return;
+  }
+  try {
+    await api("/admin/emails/" + encodeURIComponent(selectedEmailId) + "/visibility", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_public: true })
+    });
+    await api("/admin/rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender_pattern: sender, recipient_pattern: recipient, subject_pattern: subject })
+    });
+    closeRuleModal();
+    notice("Email is public and the future-matching rule was created.");
+    await refreshAll();
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to create rule.", "error");
+  }
+}
+
+async function addRule() {
+  const sender = $("newRuleSender").value.trim();
+  const recipient = $("newRuleRecipient").value.trim();
+  const subject = $("newRuleSubject").value.trim();
+  if (!subject) {
+    notice("Subject phrase is required.", "error");
+    return;
+  }
+  try {
+    await api("/admin/rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender_pattern: sender, recipient_pattern: recipient || null, subject_pattern: subject })
+    });
+    $("newRuleSender").value = "";
+    $("newRuleRecipient").value = "";
+    $("newRuleSubject").value = "";
+    notice("Automatic public rule added.");
+    await loadRules();
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to add rule.", "error");
+  }
+}
+
+async function deleteRule(id) {
+  if (!window.confirm("Delete this automatic public rule?")) return;
+  try {
+    await api("/admin/rules/" + encodeURIComponent(id), { method: "DELETE" });
+    notice("Rule deleted.");
+    await loadRules();
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to delete rule.", "error");
+  }
+}
+
+async function syncMailboxes() {
+  const button = $("syncBtn");
+  const status = $("syncStatus");
+  button.disabled = true;
+  button.textContent = "Syncing...";
+  status.textContent = "Synchronizing mailbox accounts...";
+  try {
+    const data = await api("/admin/sync/mailboxes", { method: "POST" });
+    const result = (data && data.result) || data || {};
+    notice("Mailbox sync completed successfully.");
+    status.textContent = "Sync completed: created " + (result.created || 0) + ", updated " + (result.updated || 0) + ", disabled " + (result.disabled || 0) + ", unchanged " + (result.unchanged || 0);
+  } catch (error) {
+    notice("Mailbox sync failed: " + (error && error.message ? error.message : "Unknown error"), "error");
+    status.textContent = "Sync failed.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "↻ Sync";
+  }
+}
+
+async function refreshAll() {
+  try {
+    await Promise.all([loadEmails(), loadRules()]);
+  } catch (error) {
+    notice(error && error.message ? error.message : "Failed to refresh administration data.", "error");
+  }
+}
+
+function initializeDashboard() {
+  const loginButton = $("loginBtn");
+  const tokenInput = $("tokenInput");
+  if (!loginButton || !tokenInput) return;
+
+  loginButton.addEventListener("click", login);
+  tokenInput.addEventListener("keydown", (event) => { if (event.key === "Enter") login(); });
+  $("logoutBtn").addEventListener("click", logout);
+  $("refreshBtn").addEventListener("click", refreshAll);
+  $("syncBtn").addEventListener("click", syncMailboxes);
+  $("bulkDeleteBtn").addEventListener("click", bulkDelete);
+  $("clearSelectionBtn").addEventListener("click", () => { selectedIds.clear(); selectionUi(); loadEmails(); });
+  $("selectAll").addEventListener("change", (event) => {
+    currentEmails.forEach((email) => event.target.checked ? selectedIds.add(String(email.id)) : selectedIds.delete(String(email.id)));
+    selectionUi();
+    loadEmails();
+  });
+  $("visibilityFilter").addEventListener("change", () => { page = 1; loadEmails(); });
+  $("pageSize").addEventListener("change", () => { page = 1; pageSize = Number($("pageSize").value) || 50; loadEmails(); });
+  $("emailSearch").addEventListener("input", () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => { page = 1; loadEmails(); }, 300);
+  });
+  $("prevPage").addEventListener("click", () => { if (page > 1) { page -= 1; loadEmails(); } });
+  $("nextPage").addEventListener("click", () => { page += 1; loadEmails(); });
+  $("ruleSearch").addEventListener("input", () => { rulePage = 1; renderRules(); });
+  $("rulePrev").addEventListener("click", () => { if (rulePage > 1) { rulePage -= 1; renderRules(); } });
+  $("ruleNext").addEventListener("click", () => { rulePage += 1; renderRules(); });
+  $("addRuleBtn").addEventListener("click", addRule);
+  $("confirmRuleBtn").addEventListener("click", confirmRule);
+  $("cancelRuleBtn").addEventListener("click", closeRuleModal);
+  $("cancelRuleBtnTop").addEventListener("click", closeRuleModal);
+  $("closeEmailBtn").addEventListener("click", closeEmail);
+  $("closeEmailBtn2").addEventListener("click", closeEmail);
+  $("emailModal").addEventListener("click", (event) => { if (event.target.id === "emailModal") closeEmail(); });
+  $("ruleModal").addEventListener("click", (event) => { if (event.target.id === "ruleModal") closeRuleModal(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { closeEmail(); closeRuleModal(); } });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeDashboard, { once: true });
+} else {
+  initializeDashboard();
+}
 `;
