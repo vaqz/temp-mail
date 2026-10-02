@@ -18,12 +18,13 @@ const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
 app.use(corsMiddleware);
 
-app.get("/favicon.svg", (c) =>
-	c.body(FAVICON_SVG, 200, {
-		"Content-Type": "image/svg+xml; charset=UTF-8",
-		"Cache-Control": "public, max-age=86400",
-	}),
-);
+const faviconHeaders = {
+	"Content-Type": "image/svg+xml; charset=UTF-8",
+	"Cache-Control": "public, max-age=86400",
+};
+
+app.get("/favicon.svg", (c) => c.body(FAVICON_SVG, 200, faviconHeaders));
+app.get("/admin/favicon.svg", (c) => c.body(FAVICON_SVG, 200, faviconHeaders));
 
 app.onError((err, c) => {
 	logError(`Unhandled error: ${err.message}`, err);
