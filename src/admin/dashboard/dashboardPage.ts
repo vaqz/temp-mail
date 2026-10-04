@@ -88,7 +88,7 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 
   function getStoredToken() {
     try {
-      return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+      return sessionStorage.getItem(key) || localStorage.getItem(key) || "";
     } catch (_) {
       return "";
     }
@@ -97,15 +97,15 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
   function saveToken(value) {
     if (!value) return;
     try {
-      localStorage.setItem(key, value);
       sessionStorage.setItem(key, value);
+      localStorage.setItem(key, value);
     } catch (_) {}
   }
 
   function clearToken() {
     try {
-      localStorage.removeItem(key);
       sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
     } catch (_) {}
   }
 
@@ -116,8 +116,6 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
     var logoutButton = document.getElementById("logoutBtn");
     if (!input || !loginButton || !app) return;
 
-    // Save the credential immediately when the user submits it. This avoids
-    // depending on the dashboard UI changing state before persistence occurs.
     loginButton.addEventListener("click", function () {
       var candidate = input.value.trim();
       if (candidate) saveToken(candidate);
@@ -129,33 +127,28 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
       }, true);
     }
 
-    // Restore the same authenticated session after F5/new navigation.
     var stored = getStoredToken();
     if (stored) {
       input.value = stored;
       restoring = true;
       window.setTimeout(function () {
+        if (!app.classList.contains("hidden")) return;
         loginButton.click();
-      }, 50);
+      }, 600);
     }
 
-    // If restoration fails authentication, do not keep retrying a bad token.
     window.setTimeout(function () {
       if (restoring && app.classList.contains("hidden")) {
         var message = document.getElementById("loginMessage");
-        if (message && /unauthorized|unable to authenticate/i.test(message.textContent || "")) {
-          clearToken();
-        }
+        if (message && /unauthorized|unable to authenticate/i.test(message.textContent || "")) clearToken();
       }
       restoring = false;
-    }, 3000);
+    }, 5000);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupSessionBridge, { once: true });
-  } else {
-    setupSessionBridge();
-  }
+  window.addEventListener("load", function () {
+    window.setTimeout(setupSessionBridge, 250);
+  }, { once: true });
 })();
 </script>
 </body>
