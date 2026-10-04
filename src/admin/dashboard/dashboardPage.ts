@@ -84,6 +84,30 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 <script>
 (function () {
   var key = "vm_admin_token";
+  var restoring = false;
+
+  function getStoredToken() {
+    try {
+      return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function saveToken(value) {
+    if (!value) return;
+    try {
+      localStorage.setItem(key, value);
+      sessionStorage.setItem(key, value);
+    } catch (_) {}
+  }
+
+  function clearToken() {
+    try {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    } catch (_) {}
+  }
 
   function setupSessionBridge() {
     var input = document.getElementById("tokenInput");
@@ -92,38 +116,39 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
     var logoutButton = document.getElementById("logoutBtn");
     if (!input || !loginButton || !app) return;
 
-    // dashboard.js performs the actual authentication. This bridge keeps the
-    // authenticated credential available to the other admin pages and across
-    // reloads by using origin-scoped localStorage.
+    // Save the credential immediately when the user submits it. This avoids
+    // depending on the dashboard UI changing state before persistence occurs.
     loginButton.addEventListener("click", function () {
       var candidate = input.value.trim();
-      if (!candidate) return;
-      var attempts = 0;
-      var timer = window.setInterval(function () {
-        attempts += 1;
-        if (!app.classList.contains("hidden")) {
-          localStorage.setItem(key, candidate);
-          window.clearInterval(timer);
-        } else if (attempts >= 150) {
-          window.clearInterval(timer);
-        }
-      }, 100);
+      if (candidate) saveToken(candidate);
     }, true);
 
     if (logoutButton) {
       logoutButton.addEventListener("click", function () {
-        localStorage.removeItem(key);
+        clearToken();
       }, true);
     }
 
-    // Migrate any existing session token and automatically authenticate.
-    var stored = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    // Restore the same authenticated session after F5/new navigation.
+    var stored = getStoredToken();
     if (stored) {
-      localStorage.setItem(key, stored);
-      sessionStorage.setItem(key, stored);
       input.value = stored;
-      window.setTimeout(function () { loginButton.click(); }, 0);
+      restoring = true;
+      window.setTimeout(function () {
+        loginButton.click();
+      }, 50);
     }
+
+    // If restoration fails authentication, do not keep retrying a bad token.
+    window.setTimeout(function () {
+      if (restoring && app.classList.contains("hidden")) {
+        var message = document.getElementById("loginMessage");
+        if (message && /unauthorized|unable to authenticate/i.test(message.textContent || "")) {
+          clearToken();
+        }
+      }
+      restoring = false;
+    }, 3000);
   }
 
   if (document.readyState === "loading") {
