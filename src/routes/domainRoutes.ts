@@ -1,18 +1,13 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import {
 	getActiveDomainDestinations,
 	getActiveMailboxDomains,
 } from "@/utils/mailboxDomains";
+import { isAdminAuthorized } from "@/utils/adminAuth";
+import { OpenAPIHono } from "@hono/zod-openapi";
 
 export { getActiveDomainDestinations, getActiveMailboxDomains } from "@/utils/mailboxDomains";
 
 const domainRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
-
-function isAuthorized(c: any): boolean {
-	const auth = c.req.header("Authorization");
-	const token = c.env.ADMIN_TOKEN;
-	return Boolean(token && auth === `Bearer ${token}`);
-}
 
 function normalizeDomain(value: unknown): string {
 	return String(value || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -35,7 +30,7 @@ function validEmail(email: string): boolean {
 ========================================================= */
 
 domainRoutes.get("/admin/api/domains", async (c) => {
-	if (!isAuthorized(c)) return c.json({ error: { message: "Unauthorized" } }, 401);
+	if (!(await isAdminAuthorized(c))) return c.json({ error: { message: "Unauthorized" } }, 401);
 	try {
 		const domains = await c.env.D1.prepare(
 			`SELECT domain, is_active, created_at, updated_at FROM mailbox_domains ORDER BY domain ASC`,
@@ -60,7 +55,7 @@ domainRoutes.get("/admin/api/domains", async (c) => {
 });
 
 domainRoutes.post("/admin/api/domains", async (c) => {
-	if (!isAuthorized(c)) return c.json({ error: { message: "Unauthorized" } }, 401);
+	if (!(await isAdminAuthorized(c))) return c.json({ error: { message: "Unauthorized" } }, 401);
 	try {
 		const body = await c.req.json();
 		const domain = normalizeDomain(body?.domain);
@@ -86,7 +81,7 @@ domainRoutes.post("/admin/api/domains", async (c) => {
 });
 
 domainRoutes.patch("/admin/api/domains/:domain", async (c) => {
-	if (!isAuthorized(c)) return c.json({ error: { message: "Unauthorized" } }, 401);
+	if (!(await isAdminAuthorized(c))) return c.json({ error: { message: "Unauthorized" } }, 401);
 	try {
 		const domain = normalizeDomain(c.req.param("domain"));
 		const body = await c.req.json();
@@ -100,7 +95,7 @@ domainRoutes.patch("/admin/api/domains/:domain", async (c) => {
 });
 
 domainRoutes.post("/admin/api/domains/:domain/destinations", async (c) => {
-	if (!isAuthorized(c)) return c.json({ error: { message: "Unauthorized" } }, 401);
+	if (!(await isAdminAuthorized(c))) return c.json({ error: { message: "Unauthorized" } }, 401);
 	try {
 		const domain = normalizeDomain(c.req.param("domain"));
 		const body = await c.req.json();
@@ -124,7 +119,7 @@ domainRoutes.post("/admin/api/domains/:domain/destinations", async (c) => {
 });
 
 domainRoutes.delete("/admin/api/destinations/:id", async (c) => {
-	if (!isAuthorized(c)) return c.json({ error: { message: "Unauthorized" } }, 401);
+	if (!(await isAdminAuthorized(c))) return c.json({ error: { message: "Unauthorized" } }, 401);
 	try {
 		const id = c.req.param("id");
 		await c.env.D1.prepare(`DELETE FROM mailbox_domain_destinations WHERE id = ?`).bind(id).run();
