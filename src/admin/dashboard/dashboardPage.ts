@@ -82,50 +82,54 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 
 <script src="/admin/assets/dashboard.js" defer></script>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+(function () {
   var key = "vm_admin_token";
-  var stored = sessionStorage.getItem(key) || "";
-  var input = document.getElementById("tokenInput");
-  var loginButton = document.getElementById("loginBtn");
-  var app = document.getElementById("app");
-  var logoutButton = document.getElementById("logoutBtn");
-  var pendingToken = "";
 
-  function persistAfterSuccessfulLogin() {
-    if (app && !app.classList.contains("hidden") && pendingToken) {
-      sessionStorage.setItem(key, pendingToken);
-      return true;
-    }
-    return false;
-  }
+  function setupSessionBridge() {
+    var input = document.getElementById("tokenInput");
+    var loginButton = document.getElementById("loginBtn");
+    var app = document.getElementById("app");
+    var logoutButton = document.getElementById("logoutBtn");
+    if (!input || !loginButton || !app) return;
 
-  if (loginButton) {
+    // dashboard.js performs the actual authentication. This bridge only keeps
+    // the authenticated credential available to the other admin pages.
     loginButton.addEventListener("click", function () {
-      pendingToken = input ? input.value.trim() : "";
-      if (!pendingToken) return;
-      var observer = new MutationObserver(function () {
-        if (persistAfterSuccessfulLogin()) observer.disconnect();
-      });
-      if (app) observer.observe(app, { attributes: true, attributeFilter: ["class"] });
-      window.setTimeout(function () {
-        if (persistAfterSuccessfulLogin()) observer.disconnect();
-      }, 10000);
-    });
+      var candidate = input.value.trim();
+      if (!candidate) return;
+      var attempts = 0;
+      var timer = window.setInterval(function () {
+        attempts += 1;
+        if (!app.classList.contains("hidden")) {
+          sessionStorage.setItem(key, candidate);
+          window.clearInterval(timer);
+        } else if (attempts >= 150) {
+          window.clearInterval(timer);
+        }
+      }, 100);
+    }, true);
+
+    if (logoutButton) {
+      logoutButton.addEventListener("click", function () {
+        sessionStorage.removeItem(key);
+      }, true);
+    }
+
+    // If an authenticated session already exists, authenticate the dashboard
+    // automatically after the dashboard script has registered its handlers.
+    var stored = sessionStorage.getItem(key) || "";
+    if (stored) {
+      input.value = stored;
+      window.setTimeout(function () { loginButton.click(); }, 0);
+    }
   }
 
-  if (logoutButton) {
-    logoutButton.addEventListener("click", function () {
-      sessionStorage.removeItem(key);
-      pendingToken = "";
-    });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupSessionBridge, { once: true });
+  } else {
+    setupSessionBridge();
   }
-
-  if (stored && input && loginButton) {
-    input.value = stored;
-    pendingToken = stored;
-    window.setTimeout(function () { loginButton.click(); }, 0);
-  }
-});
+})();
 </script>
 </body>
 </html>`;
