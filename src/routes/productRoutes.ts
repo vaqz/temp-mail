@@ -1,3 +1,4 @@
+import { PRODUCT_MANAGEMENT_PAGE } from "@/admin/products/productsPage";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 const productRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
@@ -36,7 +37,7 @@ async function sb(c: any, path: string, init: RequestInit = {}) {
   return data;
 }
 
-productRoutes.get("/admin/products", (c) => c.redirect("/admin/products", 302));
+productRoutes.get("/admin/products", (c) => c.html(PRODUCT_MANAGEMENT_PAGE));
 
 productRoutes.get("/admin/api/products", async (c) => {
   if (!authorized(c)) return unauthorized(c);
