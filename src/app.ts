@@ -2,6 +2,7 @@ import adminDashboardUiRoutes from "@/routes/adminDashboardUiRoutes";
 import adminRoutes from "@/routes/adminRoutes";
 import domainRoutes from "@/routes/domainRoutes";
 import domainManagerUiRoutes from "@/routes/domainManagerUiRoutes";
+import productRoutes from "@/routes/productRoutes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import attachmentRoutes from "@/routes/attachmentRoutes";
 import emailRoutes from "@/routes/emailRoutes";
@@ -42,6 +43,7 @@ app.onError((err, c) => {
 app.route("/", emailRoutes);
 app.route("/", attachmentRoutes);
 app.route("/", adminDashboardUiRoutes);
+app.route("/", productRoutes);
 app.route("/", adminRoutes);
 app.route("/", domainManagerUiRoutes);
 app.route("/", domainRoutes);
