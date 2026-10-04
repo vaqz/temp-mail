@@ -84,6 +84,30 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 <script>
 (function () {
   var key = "vm_admin_token";
+  var restoring = false;
+
+  function getStoredToken() {
+    try {
+      return sessionStorage.getItem(key) || localStorage.getItem(key) || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function saveToken(value) {
+    if (!value) return;
+    try {
+      sessionStorage.setItem(key, value);
+      localStorage.setItem(key, value);
+    } catch (_) {}
+  }
+
+  function clearToken() {
+    try {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    } catch (_) {}
+  }
 
   function setupSessionBridge() {
     var input = document.getElementById("tokenInput");
@@ -92,43 +116,39 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
     var logoutButton = document.getElementById("logoutBtn");
     if (!input || !loginButton || !app) return;
 
-    // dashboard.js performs the actual authentication. This bridge only keeps
-    // the authenticated credential available to the other admin pages.
     loginButton.addEventListener("click", function () {
       var candidate = input.value.trim();
-      if (!candidate) return;
-      var attempts = 0;
-      var timer = window.setInterval(function () {
-        attempts += 1;
-        if (!app.classList.contains("hidden")) {
-          sessionStorage.setItem(key, candidate);
-          window.clearInterval(timer);
-        } else if (attempts >= 150) {
-          window.clearInterval(timer);
-        }
-      }, 100);
+      if (candidate) saveToken(candidate);
     }, true);
 
     if (logoutButton) {
       logoutButton.addEventListener("click", function () {
-        sessionStorage.removeItem(key);
+        clearToken();
       }, true);
     }
 
-    // If an authenticated session already exists, authenticate the dashboard
-    // automatically after the dashboard script has registered its handlers.
-    var stored = sessionStorage.getItem(key) || "";
+    var stored = getStoredToken();
     if (stored) {
       input.value = stored;
-      window.setTimeout(function () { loginButton.click(); }, 0);
+      restoring = true;
+      window.setTimeout(function () {
+        if (!app.classList.contains("hidden")) return;
+        loginButton.click();
+      }, 600);
     }
+
+    window.setTimeout(function () {
+      if (restoring && app.classList.contains("hidden")) {
+        var message = document.getElementById("loginMessage");
+        if (message && /unauthorized|unable to authenticate/i.test(message.textContent || "")) clearToken();
+      }
+      restoring = false;
+    }, 5000);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupSessionBridge, { once: true });
-  } else {
-    setupSessionBridge();
-  }
+  window.addEventListener("load", function () {
+    window.setTimeout(setupSessionBridge, 250);
+  }, { once: true });
 })();
 </script>
 </body>

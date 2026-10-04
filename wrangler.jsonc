@@ -10,6 +10,14 @@
 
 	"keep_vars": true,
 
+	"secrets": {
+		"required": [
+			"ADMIN_TOKEN",
+			"SUPABASE_URL",
+			"SUPABASE_SERVICE_ROLE_KEY"
+		]
+	},
+
 	"observability": {
 		"enabled": true
 	},
