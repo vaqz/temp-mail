@@ -86,3 +86,6 @@ app.route("/", healthRoutes);
 setupDocumentation(app);
 
 export default app;
+
+// Product Management is intentionally mounted from the main Worker entrypoint
+// so /admin/products ships with the same deployment as the rest of the admin UI.
