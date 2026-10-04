@@ -17,46 +17,9 @@ function unauthorized(c: any) {
   return c.json({ error: { message: "Unauthorized" } }, 401);
 }
 
-adminDashboardUiRoutes.get("/", (c) => c.html(`<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0f2b75">
-<title>Vaqz Mobiz Mail · Admin Gateway</title>
-<link rel="icon" href="/admin/favicon.svg" type="image/svg+xml">
-<style>
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f7fb;color:#10234d;display:grid;place-items:center;padding:24px}
-.gateway{width:min(560px,100%);background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:34px;box-shadow:0 20px 55px rgba(15,43,117,.10);text-align:center}
-.mark{width:64px;height:64px;margin:0 auto 18px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(145deg,#0f5fe8,#1647b8);color:#fff;box-shadow:0 10px 24px rgba(37,99,235,.25)}
-.mark svg{width:32px;height:32px}
-h1{margin:0;font-size:28px;letter-spacing:-.02em}
-.subtitle{margin-top:7px;color:#64748b;font-size:14px}
-.divider{height:1px;background:#e8edf4;margin:26px 0}
-.status{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:12px;font-weight:700}
-.dot{width:7px;height:7px;border-radius:50%;background:#16a34a}
-p{color:#64748b;line-height:1.6;margin:20px 0 24px}
-.open{display:inline-flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:13px 18px;border-radius:12px;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;box-shadow:0 8px 20px rgba(37,99,235,.20)}
-.open:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 11px 24px rgba(37,99,235,.25)}
-.open svg{width:18px;height:18px}
-.note{margin-top:16px;font-size:12px;color:#94a3b8}
-@media(max-width:480px){body{padding:14px}.gateway{padding:28px 20px;border-radius:20px}h1{font-size:24px}}
-</style>
-</head>
-<body>
-<section class="gateway">
-  <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v13H4z"/><path d="m4 7 8 6 8-6"/></svg></div>
-  <h1>Vaqz Mobiz Mail Admin</h1>
-  <div class="subtitle">Administration gateway</div>
-  <div class="divider"></div>
-  <span class="status"><span class="dot"></span> Admin service online</span>
-  <p>This address is the administration gateway. Continue to the secure administration panel to manage messages, visibility rules and mailbox domains.</p>
-  <a class="open" href="/admin">Open Administration <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg></a>
-  <div class="note">Authorized access is required inside the administration panel.</div>
-</section>
-</body>
-</html>`));
+// /admin is the canonical administration entry point. Keep the bare root
+// address only as a compatibility redirect so there is no second admin UI.
+adminDashboardUiRoutes.get("/", (c) => c.redirect("/admin", 302));
 
 adminDashboardUiRoutes.get("/admin", (c) => c.html(ADMIN_DASHBOARD_PAGE));
 
