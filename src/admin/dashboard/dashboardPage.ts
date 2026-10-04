@@ -89,25 +89,40 @@ document.addEventListener("DOMContentLoaded", function () {
   var loginButton = document.getElementById("loginBtn");
   var app = document.getElementById("app");
   var logoutButton = document.getElementById("logoutBtn");
+  var pendingToken = "";
+
+  function persistAfterSuccessfulLogin() {
+    if (app && !app.classList.contains("hidden") && pendingToken) {
+      sessionStorage.setItem(key, pendingToken);
+      return true;
+    }
+    return false;
+  }
 
   if (loginButton) {
     loginButton.addEventListener("click", function () {
-      var value = input ? input.value.trim() : "";
-      if (!value) return;
+      pendingToken = input ? input.value.trim() : "";
+      if (!pendingToken) return;
+      var observer = new MutationObserver(function () {
+        if (persistAfterSuccessfulLogin()) observer.disconnect();
+      });
+      if (app) observer.observe(app, { attributes: true, attributeFilter: ["class"] });
       window.setTimeout(function () {
-        if (app && !app.classList.contains("hidden")) sessionStorage.setItem(key, value);
-      }, 100);
+        if (persistAfterSuccessfulLogin()) observer.disconnect();
+      }, 10000);
     });
   }
 
   if (logoutButton) {
     logoutButton.addEventListener("click", function () {
       sessionStorage.removeItem(key);
+      pendingToken = "";
     });
   }
 
   if (stored && input && loginButton) {
     input.value = stored;
+    pendingToken = stored;
     window.setTimeout(function () { loginButton.click(); }, 0);
   }
 });
