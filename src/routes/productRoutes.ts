@@ -1,13 +1,8 @@
 import { PRODUCT_MANAGEMENT_PAGE } from "@/admin/products/productsPage";
+import { isAdminAuthorized } from "@/utils/adminAuth";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 const productRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
-
-function authorized(c: any): boolean {
-  const auth = c.req.header("Authorization");
-  const token = c.env.ADMIN_TOKEN;
-  return Boolean(token && auth === `Bearer ${token}`);
-}
 
 function unauthorized(c: any) {
   return c.json({ error: { message: "Unauthorized" } }, 401);
@@ -45,7 +40,7 @@ const statusFromDb: Record<string, string> = { ACTIVE: "active", INACTIVE: "draf
 productRoutes.get("/admin/products", (c) => c.html(PRODUCT_MANAGEMENT_PAGE));
 
 productRoutes.get("/admin/api/products", async (c) => {
-  if (!authorized(c)) return unauthorized(c);
+  if (!(await isAdminAuthorized(c))) return unauthorized(c);
   try {
     const [products, modes, fields, rules] = await Promise.all([
       sb(c, "products?select=*&order=name.asc"),
@@ -72,7 +67,7 @@ productRoutes.get("/admin/api/products", async (c) => {
 });
 
 productRoutes.post("/admin/api/products", async (c) => {
-  if (!authorized(c)) return unauthorized(c);
+  if (!(await isAdminAuthorized(c))) return unauthorized(c);
   try {
     const body = await c.req.json();
     const code = String(body?.code || "").trim().toUpperCase();
