@@ -1,53 +1,28 @@
-/**
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
- */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "temp-mail",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-07-15",
-
-	"keep_vars": true,
-
-	"secrets": {
-		"required": [
-			"ADMIN_TOKEN",
-			"SUPABASE_URL",
-			"SUPABASE_SERVICE_ROLE_KEY"
-		]
-	},
-
-	"observability": {
-		"enabled": true
-	},
-
-	"d1_databases": [
-		{
-			"binding": "D1",
-			"database_name": "temp-mail-d1",
-			"database_id": "3da3f829-75e9-40c3-80c6-29db1a019e06"
-		}
-	],
-
-	"r2_buckets": [
-		{
-			"binding": "R2",
-			"bucket_name": "temp-mail-attachments",
-			"preview_bucket_name": "temp-mail-attachments-preview"
-		}
-	],
-
-	"triggers": {
-		"crons": ["0 */2 * * *"]
-	},
-
-	"vars": {
-		"TELEGRAM_LOG_ENABLE": true,
-		"HOURS_TO_DELETE_D1": 3
-	},
-
-	"placement": {
-		"mode": "smart"
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "temp-mail",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-07-15",
+  "keep_vars": true,
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "D1",
+      "database_name": "temp-mail-d1",
+      "database_id": "3da3f829-75e9-40c3-80c6-29db1a019e06"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "temp-mail-attachments",
+      "preview_bucket_name": "temp-mail-attachments-preview"
+    }
+  ],
+  "triggers": { "crons": ["0 */2 * * *"] },
+  "vars": {
+    "TELEGRAM_LOG_ENABLE": true,
+    "HOURS_TO_DELETE_D1": 3
+  },
+  "placement": { "mode": "smart" }
 }
