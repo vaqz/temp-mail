@@ -68,10 +68,7 @@ function relative(value) {
 
 async function api(path, options) {
   const requestOptions = options || {};
-  const headers = Object.assign(
-    { Authorization: "Bearer " + token },
-    requestOptions.headers || {}
-  );
+  const headers = Object.assign({}, requestOptions.headers || {});
 
   const response = await fetch(path, Object.assign({}, requestOptions, { headers }));
   let data = null;
@@ -117,7 +114,10 @@ async function login() {
   loginNotice("Checking administrator access...", "ok");
 
   try {
-    await api("/admin/api/emails?page=1&pageSize=1");
+    const response = await fetch("/admin/api/auth/session", {
+      headers: { Authorization: "Bearer " + token }
+    });
+    if (!response.ok) throw new Error("Unauthorized. Please check the admin token.");
     $("loginScreen").classList.add("hidden");
     $("app").classList.remove("hidden");
     if (input) input.value = "";
@@ -134,7 +134,8 @@ async function login() {
   }
 }
 
-function logout() {
+async function logout() {
+  try { await fetch("/admin/api/auth/logout", { method: "POST" }); } catch (_) {}
   token = "";
   selectedIds.clear();
   const app = $("app");
@@ -594,6 +595,16 @@ async function refreshAll() {
   }
 }
 
+async function restoreSession() {
+  try {
+    const response = await fetch("/admin/api/auth/session");
+    if (!response.ok) return;
+    $("loginScreen").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    await refreshAll();
+  } catch (_) {}
+}
+
 function initializeDashboard() {
   const loginButton = $("loginBtn");
   const tokenInput = $("tokenInput");
@@ -638,4 +649,5 @@ if (document.readyState === "loading") {
 } else {
   initializeDashboard();
 }
+restoreSession();
 `;
