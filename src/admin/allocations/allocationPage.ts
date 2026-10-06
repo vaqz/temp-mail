@@ -111,16 +111,14 @@ body{margin:0;background:#f4f7fb;color:#10234d;font-family:Inter,system-ui,sans-
 
 <script>
 (function(){
-const tokenKey='vm_admin_token';
 const state={products:[],tiers:[],modes:[],slots:[],selectedSlot:null};
 const $=id=>document.getElementById(id);
-const token=()=>sessionStorage.getItem(tokenKey)||'';
-
 async function api(path,opts){
 opts=opts||{};
-const headers=Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+token()},opts.headers||{});
+const headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
 const r=await fetch(path,Object.assign({},opts,{headers}));
 const d=await r.json().catch(()=>({}));
+if(r.status===401){window.location.href='/admin';throw new Error('Unauthorized. Redirecting to Administration.');}
 if(!r.ok)throw new Error(d?.error?.message||d?.error||'Request failed');
 return d
 }
