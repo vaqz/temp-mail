@@ -34,6 +34,12 @@ app.use("/admin/*", async (c, next) => {
 	await next();
 });
 
+app.get("/admin/api/auth/session", async (c) => {
+	const authorized = await isAdminAuthorized(c);
+	if (!authorized) return c.json({ error: { message: "Unauthorized" } }, 401);
+	return c.json({ success: true, authenticated: true });
+});
+
 app.post("/admin/api/auth/logout", (c) => {
 	clearAdminSession(c);
 	return c.json({ success: true });
