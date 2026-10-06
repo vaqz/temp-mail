@@ -32,6 +32,7 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
         <div class="header-actions">
           <button id="syncBtn" class="btn success top-icon" aria-label="Sync mailboxes" title="Sync mailboxes">Sync</button>
           <a href="/admin/domains" class="btn ghost top-icon" aria-label="Mailbox domains" title="Mailbox domains">Domains</a>
+          <a href="/admin/audit" class="btn ghost top-icon" aria-label="Audit log" title="Audit log">Audit</a>
           <button id="refreshBtn" class="btn ghost top-icon" aria-label="Refresh dashboard" title="Refresh dashboard">Refresh</button>
           <button id="logoutBtn" class="btn danger top-icon" aria-label="Logout" title="Logout">Logout</button>
         </div>
