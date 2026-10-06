@@ -37,7 +37,7 @@ async function sb(c: any, path: string, init: RequestInit = {}) {
 const statusToDb: Record<string, string> = { active: "ACTIVE", draft: "INACTIVE", archived: "ARCHIVED" };
 const statusFromDb: Record<string, string> = { ACTIVE: "active", INACTIVE: "draft", ARCHIVED: "archived" };
 
-productRoutes.get("/admin/products", (c) => c.html(PRODUCT_MANAGEMENT_PAGE));
+productRoutes.get("/admin/products", async (c) => { if (!(await isAdminAuthorized(c))) return c.redirect("/admin", 302); return c.html(PRODUCT_MANAGEMENT_PAGE); });
 
 productRoutes.get("/admin/api/products", async (c) => {
   if (!(await isAdminAuthorized(c))) return unauthorized(c);
