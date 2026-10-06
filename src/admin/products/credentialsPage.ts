@@ -31,8 +31,7 @@ export const CREDENTIAL_MANAGEMENT_PAGE = `<!doctype html>
  const key='vm_admin_token';
  const $=function(id){return document.getElementById(id)};
  const state={products:[],suppliers:[],items:[]};
- function auth(){return sessionStorage.getItem(key)||localStorage.getItem(key)||''}
- async function api(path,opt){opt=opt||{};const h=Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+auth()},opt.headers||{});const r=await fetch(path,Object.assign({},opt,{headers:h}));const d=await r.json().catch(function(){return {}});if(!r.ok)throw Error(d&&d.error&&d.error.message?d.error.message:'Request failed');return d}
+ async function api(path,opt){opt=opt||{};const h=Object.assign({'Content-Type':'application/json'},opt.headers||{});const r=await fetch(path,Object.assign({},opt,{headers:h}));const d=await r.json().catch(function(){return {}});if(r.status===401){window.location.href='/admin';throw Error('Unauthorized. Redirecting to Administration.')}if(!r.ok)throw Error(d&&d.error&&d.error.message?d.error.message:'Request failed');return d}
  function notice(t,e){$('notice').textContent=t;$('notice').className='notice'+(e?' error':'');$('notice').style.display='block'}
  function esc(v){return String(v==null?'':v).replace(/[&<>\"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]})}
  function render(){
