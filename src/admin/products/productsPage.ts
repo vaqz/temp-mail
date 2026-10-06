@@ -52,12 +52,12 @@ export const PRODUCT_MANAGEMENT_PAGE = `<!doctype html>
  const tokenKey='vm_admin_token';
  const state={products:[],editing:null};
  const $=function(id){return document.getElementById(id)};
- function token(){return sessionStorage.getItem(tokenKey)||''}
  async function api(path,options){
    options=options||{};
-   const headers=Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+token()},options.headers||{});
+   const headers=Object.assign({'Content-Type':'application/json'},options.headers||{});
    const response=await fetch(path,Object.assign({},options,{headers:headers}));
    const data=await response.json().catch(function(){return {}});
+   if(response.status===401){window.location.href='/admin';throw new Error('Unauthorized. Redirecting to Administration.');}
    if(!response.ok)throw new Error(data&&data.error&&data.error.message?data.error.message:'Request failed');
    return data;
  }
