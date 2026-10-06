@@ -7,7 +7,10 @@ const domainManagerUiRoutes = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 }>();
 
-domainManagerUiRoutes.get("/admin/domains", (c) => c.html(DOMAINS_PAGE));
+domainManagerUiRoutes.get("/admin/domains", async (c) => {
+	if (!(await isAdminAuthorized(c))) return c.redirect("/admin", 302);
+	return c.html(DOMAINS_PAGE);
+});
 
 domainManagerUiRoutes.get("/admin/assets/domains.css", (c) =>
 	c.body(DOMAINS_CSS, 200, {
