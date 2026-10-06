@@ -1,5 +1,6 @@
 import { PRODUCT_MANAGEMENT_PAGE } from "@/admin/products/productsPage";
 import { isAdminAuthorized } from "@/utils/adminAuth";
+import { writeAdminAudit } from "@/utils/adminAudit";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 const productRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
@@ -203,7 +204,7 @@ productRoutes.post("/admin/api/products", async (c) => {
       if (rows.length) await sb(c, "product_rules", { method: "POST", body: JSON.stringify(rows) });
     }
 
-    return c.json({ success: true, id: product.id });
+    await writeAdminAudit(c, {\n      action: body?.id ? "UPDATE_PRODUCT" : "CREATE_PRODUCT",\n      resourceType: "product",\n      resourceId: product.id,\n      summary: `${body?.id ? "Updated" : "Created"} product ${product.name} (${product.code}).`,\n      details: { code: product.code, name: product.name, status: product.status },\n    });\n\n    return c.json({ success: true, id: product.id });
   } catch (error) {
     return c.json({ error: { message: error instanceof Error ? error.message : String(error) } }, 500);
   }
