@@ -3,7 +3,7 @@ import { isAdminAuthorized } from "@/utils/adminAuth";
 import { writeAdminAudit } from "@/utils/adminAudit";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
-const credentialRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
+const credentialRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>(); // credential lifecycle history
 function unauthorized(c: any) {
 	return c.json({ error: { message: "Unauthorized" } }, 401);
 }
