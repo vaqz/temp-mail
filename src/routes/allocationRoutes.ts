@@ -208,6 +208,14 @@ allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 		);
 		const allocation = allocationRows?.[0];
 		if (allocation?.credential_id) {
+			const customerRows = await sb(c, "customers?id=eq." + encodeURIComponent(allocation.customer_id) + "&select=name,display_name,email&limit=1");
+			const modeRows = await sb(c, "product_modes?id=eq." + encodeURIComponent(String(body.product_mode_id)) + "&select=mode,display_name,product_id&limit=1");
+			const productRows = modeRows?.[0]?.product_id
+				? await sb(c, "products?id=eq." + encodeURIComponent(modeRows[0].product_id) + "&select=name,code&limit=1")
+				: [];
+			const customerRecord = customerRows?.[0];
+			const modeRecord = modeRows?.[0];
+			const productRecord = productRows?.[0];
 			await sb(c, "credential_events", {
 				method: "POST",
 				body: JSON.stringify({
