@@ -580,9 +580,73 @@ async function syncMailboxes() {
   }
 }
 
+function renderDashboardList(id, items, kind) {
+  const container = $(id);
+  if (!container) return;
+  container.innerHTML = "";
+  if (!items || !items.length) {
+    container.innerHTML = '<div class="empty">No recent activity.</div>';
+    return;
+  }
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "activity-item";
+    const title = document.createElement("div");
+    title.className = "activity-title";
+    title.textContent = kind === "audit" ? String(item.action || "Activity") : String(item.event_type || "Event");
+    const meta = document.createElement("div");
+    meta.className = "activity-meta";
+    meta.textContent = date(item.created_at);
+    row.appendChild(title);
+    row.appendChild(meta);
+    if (kind === "audit" && item.summary) {
+      const details = document.createElement("div");
+      details.className = "activity-details";
+      details.textContent = String(item.summary);
+      row.appendChild(details);
+    } else if (kind === "credential" && item.details) {
+      const details = document.createElement("div");
+      details.className = "activity-details";
+      const d = item.details || {};
+      const parts = [];
+      if (d.customer_name) parts.push("Customer: " + d.customer_name);
+      if (d.product_name) parts.push("Product: " + d.product_name);
+      if (d.reason) parts.push("Reason: " + d.reason);
+      if (d.slot_name) parts.push(d.slot_name);
+      details.textContent = parts.join(" · ");
+      if (parts.length) row.appendChild(details);
+    }
+    container.appendChild(row);
+  });
+}
+
+async function loadDashboardKpis() {
+  const data = await api("/admin/api/dashboard/kpis");
+  const c = data.credentials || {};
+  const a = data.allocations || {};
+  const p = data.products || {};
+  const inv = data.inventory || {};
+  $("kpiCredentials").textContent = String(c.total || 0);
+  $("kpiCredentialsFoot").textContent = String(c.active || 0) + " active · " + String(c.suspended || 0) + " suspended";
+  $("kpiAllocations").textContent = String(a.active || 0);
+  $("kpiAllocationsFoot").textContent = String(a.inactive || 0) + " inactive / released";
+  $("kpiUtilization").textContent = String(inv.occupiedRatio || 0) + "%";
+  $("kpiUtilizationFoot").textContent = String(inv.activeAllocations || 0) + " active allocations · " + String(inv.activeSlots || 0) + " active slots";
+  $("kpiProducts").textContent = String(p.active || 0);
+  $("kpiProductsFoot").textContent = String(p.total || 0) + " total products";
+  $("kpiCredentialActive").textContent = String(c.active || 0);
+  $("kpiCredentialSuspended").textContent = String(c.suspended || 0);
+  $("kpiCredentialArchived").textContent = String(c.archived || 0);
+  $("kpiAllocationActive").textContent = String(a.active || 0);
+  $("kpiAllocationInactive").textContent = String(a.inactive || 0);
+  $("kpiAllocationExpired").textContent = String(a.expired || 0);
+  renderDashboardList("recentCredentialEvents", data.recentCredentialEvents || [], "credential");
+  renderDashboardList("recentAudit", data.recentAudit || [], "audit");
+}
+
 async function refreshAll() {
   try {
-    await Promise.all([loadEmails(), loadRules()]);
+    await Promise.all([loadEmails(), loadRules(), loadDashboardKpis()]);
   } catch (error) {
     notice(error && error.message ? error.message : "Failed to refresh administration data.", "error");
   }
