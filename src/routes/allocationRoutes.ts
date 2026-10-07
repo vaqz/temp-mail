@@ -224,6 +224,9 @@ allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 					details: {
 						allocation_id: allocation.id,
 						customer_id: allocation.customer_id,
+						customer_name: customerRecord?.display_name || customerRecord?.name || customerRecord?.email || null,
+						product_name: productRecord?.name || productRecord?.code || null,
+						mode: modeRecord?.display_name || modeRecord?.mode || null,
 						slot_number: allocation.slot_number,
 						slot_name: allocation.slot_name,
 						term_months: allocation.term_months,
