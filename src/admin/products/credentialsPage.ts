@@ -51,8 +51,29 @@ export const CREDENTIAL_MANAGEMENT_PAGE = `<!doctype html>
    $('modes').innerHTML=modes.map(function(m){return '<label style="display:block;margin:7px 0"><input type="checkbox" class="mode" value="'+esc(m.id)+'" '+(selected.includes(m.id)?'checked':'')+'> '+esc(m.mode)+' — '+esc(m.display_name||'')+' <span class="hint">('+esc(m.capacity)+' slots / '+esc(m.max_customers_per_credential)+' customers)</span></label>'}).join('')
  }
  function eventTitle(type){return ({CREATED:'Credential created',UPDATED:'Credential updated',PASSWORD_RESET:'Password reset',PASSWORD_CHANGED:'Password changed',ALLOCATED:'Credential allocated',RELEASED:'Credential released',SUSPENDED:'Credential suspended',RESTORED:'Credential restored',ARCHIVED:'Credential archived',NOTE:'Note added'})[type]||type}
- function formatEventDetails(details){if(!details)return '';try{if(details.changes)return Object.keys(details.changes).map(function(k){var c=details.changes[k];return k+': '+String(c.from==null?'—':c.from)+' → '+String(c.to==null?'—':c.to)}).join('\\n');return JSON.stringify(details,null,2)}catch(_){return String(details)}}
- async function showHistory(id){var x=state.items.find(function(i){return i.id===id});if(!x)return;$('historyTitle').textContent='History · '+(x.account_email||'Credential');$('historyBody').innerHTML='<div class="hint">Loading…</div>';$('historyModal').classList.add('open');try{var d=await api('/admin/api/credentials/'+encodeURIComponent(id)+'/history');var events=d.items||[];$('historyBody').innerHTML=events.length?events.map(function(e){return '<div class="event"><div class="event-title">'+esc(eventTitle(e.event_type))+'</div><div class="event-time">'+esc(new Date(e.created_at).toLocaleString())+'</div>'+(e.details&&Object.keys(e.details).length?'<div class="event-details">'+esc(formatEventDetails(e.details))+'</div>':'')+'</div>'}).join(''):'<div class="hint">No history recorded yet.</div>'}catch(e){$('historyBody').innerHTML='<div class="notice error">'+esc(e.message)+'</div>'}}
+ function formatDateValue(value){if(!value)return '—';try{return new Date(value).toLocaleString()}catch(_){return String(value)}}
+ function formatEventDetails(details,type){if(!details)return '';try{
+   if(details.changes)return Object.keys(details.changes).map(function(k){var c=details.changes[k];return k+': '+String(c.from==null?'—':c.from)+' → '+String(c.to==null?'—':c.to)}).join('\\n');
+   if(type==='ALLOCATED'){
+     var lines=[];
+     if(details.customer_name)lines.push('Customer: '+details.customer_name);
+     if(details.product_name)lines.push('Product: '+details.product_name);
+     if(details.mode)lines.push('Mode: '+details.mode);
+     if(details.slot_name||details.slot_number)lines.push('Slot: '+(details.slot_name||('Slot '+details.slot_number)));
+     if(details.term_months)lines.push('Term: '+details.term_months+' month(s)');
+     if(details.starts_at)lines.push('Started: '+formatDateValue(details.starts_at));
+     if(details.expires_at)lines.push('Expires: '+formatDateValue(details.expires_at));
+     return lines.length?lines.join('\\n'):'Allocation recorded';
+   }
+   if(type==='CREATED'){
+     var created=[];
+     if(details.account_email)created.push('Account: '+details.account_email);
+     if(details.mode_count!=null)created.push('Inventory modes: '+details.mode_count);
+     return created.length?created.join('\\n'):'Credential created';
+   }
+   return JSON.stringify(details,null,2);
+ }catch(_){return String(details)}}
+ async function showHistory(id){var x=state.items.find(function(i){return i.id===id});if(!x)return;$('historyTitle').textContent='History · '+(x.account_email||'Credential');$('historyBody').innerHTML='<div class="hint">Loading…</div>';$('historyModal').classList.add('open');try{var d=await api('/admin/api/credentials/'+encodeURIComponent(id)+'/history');var events=d.items||[];$('historyBody').innerHTML=events.length?events.map(function(e){return '<div class="event"><div class="event-title">'+esc(eventTitle(e.event_type))+'</div><div class="event-time">'+esc(new Date(e.created_at).toLocaleString())+'</div>'+(e.details&&Object.keys(e.details).length?'<div class="event-details">'+esc(formatEventDetails(e.details,e.event_type))+'</div>':'')+'</div>'}).join(''):'<div class="hint">No history recorded yet.</div>'}catch(e){$('historyBody').innerHTML='<div class="notice error">'+esc(e.message)+'</div>'}}
  function reset(){$('id').value='';$('email').value='';$('cost').value='';$('date').value='';$('label').value='';$('notes').value='';$('credStatus').value='ACTIVE';fillOptions();$('product').selectedIndex=0;modeOptions([])}
  function edit(id){const x=state.items.find(function(i){return i.id===id});if(!x)return;fillOptions();$('id').value=x.id;$('product').value=x.product_id||'';$('email').value=x.account_email||'';$('cost').value=x.purchase_cost==null?'':x.purchase_cost;$('date').value=(x.purchase_date||'').slice(0,10);$('label').value=x.label||'';$('notes').value=x.notes||'';$('credStatus').value=x.status||'ACTIVE';modeOptions((x.modes||[]).map(function(m){return m.product_mode_id}));$('title').textContent='Edit Credential';$('modal').classList.add('open')}
  $('product').onchange=function(){modeOptions([])};
