@@ -165,6 +165,10 @@ async function releaseAllocation(c: any, allocationId: string, reason: string) {
 	});
 
 	if (allocation.credential_id) {
+		const customerRows = allocation.customer_id
+			? await sb(c, "customers?id=eq." + encodeURIComponent(allocation.customer_id) + "&select=name,display_name,email&limit=1")
+			: [];
+		const customerRecord = customerRows?.[0];
 		await sb(c, "credential_events", {
 			method: "POST",
 			body: JSON.stringify({
@@ -173,6 +177,7 @@ async function releaseAllocation(c: any, allocationId: string, reason: string) {
 				details: {
 					allocation_id: allocation.id,
 					customer_id: allocation.customer_id,
+					customer_name: customerRecord?.display_name || customerRecord?.name || customerRecord?.email || null,
 					slot_number: allocation.slot_number,
 					slot_name: allocation.slot_name,
 					term_months: allocation.term_months,
