@@ -15,7 +15,6 @@ import { setupDocumentation } from "@/utils/docs";
 import { logError } from "@/utils/logger";
 import { isAdminAuthorized, clearAdminSession } from "@/utils/adminAuth";
 import { writeAdminAudit } from "@/utils/adminAudit";
-import { deleteCookie } from "hono/cookie";
 import corsMiddleware from "./middlewares/cors";
 import healthRoutes from "./routes/healthRoutes";
 import { ERR } from "./utils/http";
@@ -37,12 +36,44 @@ app.use("/admin/*", async (c, next) => {
 });
 
 app.get("/admin/api/auth/session", async (c) => {
+	const authorization = c.req.header("Authorization");
 	const authorized = await isAdminAuthorized(c);
-	if (!authorized) return c.json({ error: { message: "Unauthorized" } }, 401);
+
+	if (!authorized) {
+		if (authorization) {
+			await writeAdminAudit(c, {
+				action: "ADMIN_LOGIN_FAILED",
+				resourceType: "admin_auth",
+				summary: "Failed administrator login attempt.",
+				details: { method: "token" },
+			});
+		}
+		return c.json({ error: { message: "Unauthorized" } }, 401);
+	}
+
+	if (authorization) {
+		await writeAdminAudit(c, {
+			action: "ADMIN_LOGIN_SUCCESS",
+			resourceType: "admin_auth",
+			summary: "Administrator login succeeded.",
+			details: { method: "token" },
+		});
+	}
+
 	return c.json({ success: true, authenticated: true });
 });
 
-app.post("/admin/api/auth/logout", (c) => {
+app.post("/admin/api/auth/logout", async (c) => {
+	const authorized = await isAdminAuthorized(c);
+
+	if (authorized) {
+		await writeAdminAudit(c, {
+			action: "ADMIN_LOGOUT",
+			resourceType: "admin_auth",
+			summary: "Administrator logged out.",
+		});
+	}
+
 	clearAdminSession(c);
 	return c.json({ success: true });
 });
