@@ -113,6 +113,43 @@ allocationRoutes.get("/admin/api/allocation/slots", async (c) => {
 		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
 	}
 });
+allocationRoutes.get("/admin/api/allocation/history", async (c) => {
+	if (!(await isAdminAuthorized(c))) return unauthorized(c);
+	try {
+		const rows = await sb(
+			c,
+			"allocations?select=id,credential_id,customer_id,product_mode_id,slot_id,slot_number,slot_name,term_months,status,starts_at,expires_at,created_at,updated_at,order_item_id&order=created_at.desc&limit=100",
+		);
+		const customerIds = [...new Set((rows || []).map((x: any) => x.customer_id).filter(Boolean))];
+		const modeIds = [...new Set((rows || []).map((x: any) => x.product_mode_id).filter(Boolean))];
+		const customers = customerIds.length
+			? await sb(c, "customers?id=in.(" + customerIds.map(encodeURIComponent).join(",") + ")&select=id,name,display_name,email")
+			: [];
+		const modes = modeIds.length
+			? await sb(c, "product_modes?id=in.(" + modeIds.map(encodeURIComponent).join(",") + ")&select=id,product_id,mode,display_name")
+			: [];
+		const productIds = [...new Set((modes || []).map((x: any) => x.product_id).filter(Boolean))];
+		const products = productIds.length
+			? await sb(c, "products?id=in.(" + productIds.map(encodeURIComponent).join(",") + ")&select=id,name,code")
+			: [];
+		const customerMap = new Map((customers || []).map((x: any) => [x.id, x]));
+		const modeMap = new Map((modes || []).map((x: any) => [x.id, x]));
+		const productMap = new Map((products || []).map((x: any) => [x.id, x]));
+		const items = (rows || []).map((x: any) => {
+			const mode = modeMap.get(x.product_mode_id);
+			return {
+				...x,
+				customer: customerMap.get(x.customer_id) || null,
+				product: mode ? productMap.get(mode.product_id) || null : null,
+				mode: mode || null,
+			};
+		});
+		return c.json({ items });
+	} catch (e) {
+		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
+	}
+});
+
 allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 	if (!(await isAdminAuthorized(c))) return unauthorized(c);
 	try {
@@ -165,6 +202,30 @@ allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 		});
 		const result = Array.isArray(rows) ? rows[0] : rows;
 		if (!result?.allocation_id) throw new Error("Order/allocation was not created.");
+		const allocationRows = await sb(
+			c,
+			"allocations?id=eq." + encodeURIComponent(result.allocation_id) + "&select=id,credential_id,customer_id,slot_number,slot_name,term_months,starts_at,expires_at,status,order_item_id&limit=1",
+		);
+		const allocation = allocationRows?.[0];
+		if (allocation?.credential_id) {
+			await sb(c, "credential_events", {
+				method: "POST",
+				body: JSON.stringify({
+					credential_id: allocation.credential_id,
+					event_type: "ALLOCATED",
+					details: {
+						allocation_id: allocation.id,
+						customer_id: allocation.customer_id,
+						slot_number: allocation.slot_number,
+						slot_name: allocation.slot_name,
+						term_months: allocation.term_months,
+						starts_at: allocation.starts_at,
+						expires_at: allocation.expires_at,
+						order_item_id: allocation.order_item_id,
+					},
+				}),
+			});
+		}
 		await writeAdminAudit(c, {
 			action: "CREATE_ALLOCATION",
 			resourceType: "allocation",
