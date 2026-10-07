@@ -106,6 +106,27 @@ credentialRoutes.get("/admin/api/credentials", async (c) => {
 		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
 	}
 });
+async function recordCredentialEvent(c: any, credentialId: string, eventType: string, details: Record<string, unknown> = {}) {
+	await sb(c, "credential_events", {
+		method: "POST",
+		body: JSON.stringify({ credential_id: credentialId, event_type: eventType, details }),
+	});
+}
+
+credentialRoutes.get("/admin/api/credentials/:credentialId/history", async (c) => {
+	if (!(await isAdminAuthorized(c))) return unauthorized(c);
+	try {
+		const credentialId = c.req.param("credentialId");
+		const events = await sb(
+			c,
+			"credential_events?credential_id=eq." + encodeURIComponent(credentialId) + "&select=id,event_type,details,created_at&order=created_at.desc",
+		);
+		return c.json({ items: events || [] });
+	} catch (e) {
+		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
+	}
+});
+
 credentialRoutes.post("/admin/api/credentials", async (c) => {
 	if (!(await isAdminAuthorized(c))) return unauthorized(c);
 	try {
@@ -128,6 +149,43 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 		);
 		if (!productModes.length || productModes.some((m: any) => m.product_id !== productId))
 			throw new Error("Selected selling modes do not belong to this product.");
+
+		const credentialId = body?.id ? String(body.id) : "";
+		if (credentialId) {
+			const existingRows = await sb(c, "credentials?id=eq." + encodeURIComponent(credentialId) + "&select=id,product_id,account_email,status,label,notes,purchase_cost,purchase_date&limit=1");
+			const existing = existingRows?.[0];
+			if (!existing) return c.json({ error: { message: "Credential not found." } }, 404);
+			await sb(c, "credentials?id=eq." + encodeURIComponent(credentialId), {
+				method: "PATCH",
+				body: JSON.stringify({
+					product_id: productId,
+					supplier_id: body?.supplier_id || null,
+					account_email: email,
+					purchase_cost: body?.purchase_cost == null || body.purchase_cost === "" ? null : Number(body.purchase_cost),
+					purchase_date: body?.purchase_date || null,
+					status: body?.status || "ACTIVE",
+					label: body?.label || null,
+					notes: body?.notes || null,
+				}),
+			});
+			const changes: Record<string, unknown> = {};
+			for (const key of ["product_id", "account_email", "status", "label", "notes", "purchase_cost", "purchase_date"]) {
+				const oldValue = existing[key];
+				const newValue = body[key] == null || body[key] === "" ? null : body[key];
+				if (String(oldValue ?? "") !== String(newValue ?? "")) changes[key] = { from: oldValue ?? null, to: newValue };
+			}
+			if (Object.keys(changes).length) {
+				await recordCredentialEvent(c, credentialId, "UPDATED", { changes });
+				await writeAdminAudit(c, {
+					action: "UPDATE_CREDENTIAL",
+					resourceType: "credential",
+					resourceId: credentialId,
+					summary: "Updated credential " + email + ".",
+					details: { changes },
+				});
+			}
+			return c.json({ success: true, id: credentialId, updated: true });
+		}
 		const rows = await sb(c, "credentials", {
 			method: "POST",
 			headers: { Prefer: "return=representation" },
@@ -176,6 +234,11 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 				),
 			});
 		}
+		await recordCredentialEvent(c, credential.id, "CREATED", {
+			product_id: productId,
+			account_email: email,
+			mode_count: productModes.length,
+		});
 		await writeAdminAudit(c, {
 			action: "CREATE_CREDENTIAL",
 			resourceType: "credential",
