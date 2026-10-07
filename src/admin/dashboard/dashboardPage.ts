@@ -5,8 +5,8 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0f2b75">
 <title>Vaqz Mobiz Mail · Administration</title>
-<link rel="icon" href="/admin/favicon.svg" type="image/svg+xml">
-<link rel="shortcut icon" href="/admin/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://vaqzmobiz.com/assets/favicon.svg" type="image/svg+xml">
+<link rel="shortcut icon" href="https://vaqzmobiz.com/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/admin/assets/dashboard.css">
 </head>
 <body>
