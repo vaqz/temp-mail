@@ -57,6 +57,80 @@ adminDashboardUiRoutes.get("/admin/assets/dashboard.js", (c) => {
 	});
 });
 
+
+
+async function supabaseDashboard(c: any, path: string) {
+	const url = String(c.env.SUPABASE_URL || "").replace(/\/$/, "");
+	const key = String(c.env.SUPABASE_SERVICE_ROLE_KEY || "");
+	if (!url || !key) throw new Error("Supabase is not configured.");
+	const response = await fetch(`${url}/rest/v1/${path}`, {
+		headers: {
+			apikey: key,
+			Authorization: `Bearer ${key}`,
+			"Content-Type": "application/json",
+		},
+	});
+	const text = await response.text();
+	let data: any = null;
+	try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+	if (!response.ok) throw new Error(data?.message || data?.hint || data?.details || data?.error || text || `Supabase request failed (${response.status})`);
+	return data;
+}
+
+adminDashboardUiRoutes.get("/admin/api/dashboard/kpis", async (c) => {
+	if (!authorized(c)) return unauthorized(c);
+	try {
+		const [
+			products,
+			credentials,
+			allocations,
+			modes,
+			slots,
+			recentAllocations,
+			recentEvents,
+			recentAudit,
+		] = await Promise.all([
+			supabaseDashboard(c, "products?select=id,status"),
+			supabaseDashboard(c, "credentials?select=id,status"),
+			supabaseDashboard(c, "allocations?select=id,status,expires_at"),
+			supabaseDashboard(c, "credential_modes?select=id,credential_id,active"),
+			supabaseDashboard(c, "credential_slots?select=id,active"),
+			supabaseDashboard(c, "allocations?select=id,customer_id,credential_id,product_mode_id,slot_number,slot_name,term_months,starts_at,expires_at,status,created_at&order=created_at.desc&limit=6"),
+			supabaseDashboard(c, "credential_events?select=id,credential_id,event_type,details,created_at&order=created_at.desc&limit=8"),
+			supabaseDashboard(c, "admin_audit_logs?select=id,action,summary,resource_type,created_at&order=created_at.desc&limit=8"),
+		]);
+		const now = Date.now();
+		const productRows = products || [];
+		const credentialRows = credentials || [];
+		const allocationRows = allocations || [];
+		const activeCredentials = credentialRows.filter((x: any) => x.status === "ACTIVE").length;
+		const suspendedCredentials = credentialRows.filter((x: any) => x.status === "SUSPENDED").length;
+		const archivedCredentials = credentialRows.filter((x: any) => x.status === "ARCHIVED").length;
+		const activeAllocations = allocationRows.filter((x: any) => x.status === "ACTIVE").length;
+		const inactiveAllocations = allocationRows.filter((x: any) => x.status !== "ACTIVE").length;
+		const expiredActiveAllocations = allocationRows.filter((x: any) => x.status === "ACTIVE" && x.expires_at && new Date(x.expires_at).getTime() <= now).length;
+		const activeSlots = (slots || []).filter((x: any) => x.active !== false).length;
+		const activeModes = (modes || []).filter((x: any) => x.active !== false).length;
+		const occupiedRatio = activeSlots ? Math.min(100, Math.round((activeAllocations / activeSlots) * 100)) : 0;
+		return c.json({
+			emails: {
+				total: Number((await c.env.D1.prepare("SELECT COUNT(*) as count FROM emails").first() as any)?.count || 0),
+				public: Number((await c.env.D1.prepare("SELECT COUNT(*) as count FROM emails WHERE is_public = 1").first() as any)?.count || 0),
+				private: Number((await c.env.D1.prepare("SELECT COUNT(*) as count FROM emails WHERE is_public = 0").first() as any)?.count || 0),
+			},
+			products: { total: productRows.length, active: productRows.filter((x: any) => x.status === "ACTIVE").length },
+			credentials: { total: credentialRows.length, active: activeCredentials, suspended: suspendedCredentials, archived: archivedCredentials },
+			allocations: { total: allocationRows.length, active: activeAllocations, inactive: inactiveAllocations, expired: expiredActiveAllocations },
+			inventory: { activeModes, activeSlots, activeAllocations, occupiedRatio },
+			recentAllocations: recentAllocations || [],
+			recentCredentialEvents: recentEvents || [],
+			recentAudit: recentAudit || [],
+		});
+	} catch (error) {
+		return c.json({ error: { message: error instanceof Error ? error.message : String(error) } }, 500);
+	}
+});
+
 adminDashboardUiRoutes.get("/admin/api/emails", async (c) => {
 	if (!authorized(c)) return unauthorized(c);
 
