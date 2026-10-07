@@ -60,9 +60,9 @@ body{margin:0;background:#f4f7fb;color:#10234d;font-family:Inter,system-ui,sans-
 </section>
 
 <section class="card">
-<div class="header"><div><h2 style="margin:0">Allocation History</h2><div class="muted">Recent customer allocations and their current status.</div></div><button id="refreshHistory" class="btn secondary" type="button">Refresh</button></div>
+<div class="header"><div><h2 style="margin:0">Allocation History</h2><div class="muted">Recent customer allocations and their current status.</div></div><div class="actions"><button id="releaseExpired" class="btn secondary" type="button">Release Expired</button><button id="refreshHistory" class="btn secondary" type="button">Refresh</button></div></div>
 <div id="historyLoading" class="muted" style="margin-top:14px">Loading allocation history…</div>
-<div id="historyWrap" class="history-wrap" style="display:none"><table class="history-table"><thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Mode</th><th>Slot</th><th>Term</th><th>Status</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+<div id="historyWrap" class="history-wrap" style="display:none"><table class="history-table"><thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Mode</th><th>Slot</th><th>Term</th><th>Status</th><th></th></tr></thead><tbody id="historyBody"></tbody></table></div>
 </section>
 
 <section class="card">
@@ -181,6 +181,17 @@ $('allocate').disabled=true;
 window.scrollTo({top:0,behavior:'smooth'});
 }
 
+async function releaseAllocation(id){
+	if(!confirm('Release this allocation? The slot will become available again.'))return;
+	try{await api('/admin/api/allocation/'+encodeURIComponent(id)+'/release',{method:'POST'});await loadHistory();await loadSlots();note('Allocation released successfully.')}catch(e){note(e.message,true)}
+}
+async function releaseExpired(){
+	if(!confirm('Release all allocations whose expiry date has passed?'))return;
+	try{const d=await api('/admin/api/allocation/release-expired',{method:'POST'});await loadHistory();await loadSlots();note((d.released||0)+' expired allocation(s) released.')}catch(e){note(e.message,true)}
+}
+async function bindReleaseButtons(){
+	document.querySelectorAll('.release-allocation').forEach(function(b){b.onclick=function(){releaseAllocation(b.dataset.id)}});
+}
 async function loadHistory(){
 try{
 	$('historyLoading').style.display='block';$('historyWrap').style.display='none';
@@ -188,9 +199,9 @@ try{
 	$('historyBody').innerHTML=items.length?items.map(function(x){
 		const customer=x.customer?.display_name||x.customer?.name||x.customer?.email||'—';
 		const product=x.product?.name||x.product?.code||'—';const mode=x.mode?.mode||x.mode?.display_name||'—';
-		return '<tr><td>'+esc(new Date(x.created_at).toLocaleString())+'</td><td><strong>'+esc(customer)+'</strong><span class="muted">'+esc(x.customer?.email||'')+'</span></td><td>'+esc(product)+'</td><td>'+esc(mode)+'</td><td>Slot '+esc(x.slot_number||'—')+(x.slot_name?' · '+esc(x.slot_name):'')+'</td><td>'+esc(x.term_months||'—')+' month(s)</td><td><span class="status-pill">'+esc(x.status||'—')+'</span></td></tr>';
+		return '<tr><td>'+esc(new Date(x.created_at).toLocaleString())+'</td><td><strong>'+esc(customer)+'</strong><span class="muted">'+esc(x.customer?.email||'')+'</span></td><td>'+esc(product)+'</td><td>'+esc(mode)+'</td><td>Slot '+esc(x.slot_number||'—')+(x.slot_name?' · '+esc(x.slot_name):'')+'</td><td>'+esc(x.term_months||'—')+' month(s)</td><td><span class="status-pill">'+esc(x.status||'—')+'</span></td><td>'+(x.status==='ACTIVE'?'<button class="btn secondary release-allocation" data-id="'+esc(x.id)+'">Release</button>':'—')+'</td></tr>';
 	}).join(''):'<tr><td colspan="7" class="muted">No allocations recorded yet.</td></tr>';
-	$('historyLoading').style.display='none';$('historyWrap').style.display='block';
+	$('historyLoading').style.display='none';$('historyWrap').style.display='block';await bindReleaseButtons();
 }catch(e){$('historyLoading').textContent=e.message}
 }
 
@@ -204,7 +215,7 @@ $('product').onchange=loadModes;
 $('mode').onchange=loadSlots;
 $('allocate').onclick=allocate;
 $('closeSuccess').onclick=closeSuccess;
-$('newSale').onclick=resetForNewSale;$('refreshHistory').onclick=loadHistory;
+$('newSale').onclick=resetForNewSale;$('refreshHistory').onclick=loadHistory;$('releaseExpired').onclick=releaseExpired;
 $('successModal').addEventListener('click',e=>{if(e.target===$('successModal'))closeSuccess()});
 $('name').oninput=renderSummary;$('term').onchange=renderSummary;$('price').oninput=renderSummary;$('tier').onchange=renderSummary;
 }catch(e){note(e.message,true)}
