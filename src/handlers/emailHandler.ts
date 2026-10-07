@@ -21,10 +21,12 @@ async function matchesPublicVisibilityRule(
 	subject: string | null,
 ): Promise<boolean> {
 	try {
-		const { results } = await dbConnection.prepare(
-			`SELECT sender_pattern, subject_pattern, recipient_pattern, action
+		const { results } = await dbConnection
+			.prepare(
+				`SELECT sender_pattern, subject_pattern, recipient_pattern, action
 			 FROM email_visibility_rules WHERE action = 'public'`,
-		).all();
+			)
+			.all();
 		const sender = fromAddress.trim().toLowerCase();
 		const recipient = toAddress.trim().toLowerCase();
 		const emailSubject = (subject || "").trim().toLowerCase();
@@ -35,9 +37,15 @@ async function matchesPublicVisibilityRule(
 			recipient_pattern: string | null;
 			action: string;
 		}>) {
-			const senderPattern = String(rule.sender_pattern || "").trim().toLowerCase();
-			const subjectPattern = String(rule.subject_pattern || "").trim().toLowerCase();
-			const recipientPattern = String(rule.recipient_pattern || "").trim().toLowerCase();
+			const senderPattern = String(rule.sender_pattern || "")
+				.trim()
+				.toLowerCase();
+			const subjectPattern = String(rule.subject_pattern || "")
+				.trim()
+				.toLowerCase();
+			const recipientPattern = String(rule.recipient_pattern || "")
+				.trim()
+				.toLowerCase();
 			if (senderPattern && sender !== senderPattern) continue;
 			if (recipientPattern && recipient !== recipientPattern) continue;
 			if (subjectPattern && !emailSubject.includes(subjectPattern)) continue;
@@ -64,21 +72,32 @@ function validateAttachments(attachments: EmailAttachment[], emailId: string): E
 			break;
 		}
 
-		const attachmentSize = attachment.content instanceof ArrayBuffer
-			? attachment.content.byteLength
-			: new TextEncoder().encode(attachment.content || "").byteLength;
+		const attachmentSize =
+			attachment.content instanceof ArrayBuffer
+				? attachment.content.byteLength
+				: new TextEncoder().encode(attachment.content || "").byteLength;
 		const contentType = attachment.mimeType || "application/octet-stream";
-		if (!ATTACHMENT_LIMITS.ALLOWED_TYPES.includes(contentType as (typeof ATTACHMENT_LIMITS.ALLOWED_TYPES)[number])) {
-			console.warn(`Email ${emailId}: Attachment ${attachment.filename} has unsupported type (${contentType}), skipping`);
+		if (
+			!ATTACHMENT_LIMITS.ALLOWED_TYPES.includes(
+				contentType as (typeof ATTACHMENT_LIMITS.ALLOWED_TYPES)[number],
+			)
+		) {
+			console.warn(
+				`Email ${emailId}: Attachment ${attachment.filename} has unsupported type (${contentType}), skipping`,
+			);
 			continue;
 		}
 		if (attachmentSize > ATTACHMENT_LIMITS.MAX_SIZE) {
-			console.warn(`Email ${emailId}: Attachment ${attachment.filename} too large (${attachmentSize} bytes), skipping`);
+			console.warn(
+				`Email ${emailId}: Attachment ${attachment.filename} too large (${attachmentSize} bytes), skipping`,
+			);
 			continue;
 		}
 		totalAttachmentSize += attachmentSize;
 		if (totalAttachmentSize > ATTACHMENT_LIMITS.MAX_SIZE * ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
-			console.warn(`Email ${emailId}: Total attachment size too large, skipping remaining attachments`);
+			console.warn(
+				`Email ${emailId}: Total attachment size too large, skipping remaining attachments`,
+			);
 			break;
 		}
 		validAttachments.push(attachment);
@@ -95,7 +114,10 @@ export async function handleEmail(
 		const timer = new PerformanceTimer("email-processing");
 		const emailId = createId();
 		const email = await PostalMime.parse(message.raw);
-		const { htmlContent, textContent } = processEmailContent(email.html ?? null, email.text ?? null);
+		const { htmlContent, textContent } = processEmailContent(
+			email.html ?? null,
+			email.text ?? null,
+		);
 		const validAttachments = validateAttachments(email.attachments || [], emailId);
 		const fromAddress = email.from?.address || message.from;
 		const subject = email.subject || null;

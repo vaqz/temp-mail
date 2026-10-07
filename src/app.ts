@@ -47,7 +47,10 @@ app.post("/admin/api/auth/logout", (c) => {
 	return c.json({ success: true });
 });
 
-const faviconHeaders = { "Content-Type": "image/svg+xml; charset=UTF-8", "Cache-Control": "public, max-age=86400" };
+const faviconHeaders = {
+	"Content-Type": "image/svg+xml; charset=UTF-8",
+	"Cache-Control": "public, max-age=86400",
+};
 const faviconResponse = (c: any) => c.body(FAVICON_SVG, 200, faviconHeaders);
 app.get("/favicon.svg", faviconResponse);
 app.get("/admin/favicon.svg", faviconResponse);
@@ -55,7 +58,10 @@ app.get("/favicon.ico", (c) => c.redirect("/favicon.svg", 302));
 app.get("/favicon.png", (c) => c.redirect("/favicon.svg", 302));
 app.get("/apple-touch-icon.png", (c) => c.redirect("/favicon.svg", 302));
 
-app.onError((err, c) => { logError(`Unhandled error: ${err.message}`, err); return c.json(ERR(err.name, err.message), 500); });
+app.onError((err, c) => {
+	logError(`Unhandled error: ${err.message}`, err);
+	return c.json(ERR(err.name, err.message), 500);
+});
 
 app.route("/", emailRoutes);
 app.route("/", attachmentRoutes);

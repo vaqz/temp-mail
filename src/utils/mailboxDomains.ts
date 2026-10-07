@@ -6,9 +6,7 @@
  * production-domain fallbacks here.
  */
 
-export async function getActiveMailboxDomains(
-	db: D1Database,
-): Promise<string[]> {
+export async function getActiveMailboxDomains(db: D1Database): Promise<string[]> {
 	const result = await db
 		.prepare(
 			`SELECT domain
@@ -18,9 +16,7 @@ export async function getActiveMailboxDomains(
 		)
 		.all<{ domain: string }>();
 
-	return result.results
-		.map((row) => String(row.domain).trim().toLowerCase())
-		.filter(Boolean);
+	return result.results.map((row) => String(row.domain).trim().toLowerCase()).filter(Boolean);
 }
 
 export async function getActiveDomainDestinations(
@@ -45,10 +41,7 @@ export async function getActiveDomainDestinations(
 		.filter(Boolean);
 }
 
-export async function isActiveMailboxDomain(
-	db: D1Database,
-	domain: string,
-): Promise<boolean> {
+export async function isActiveMailboxDomain(db: D1Database, domain: string): Promise<boolean> {
 	const normalizedDomain = domain.trim().toLowerCase();
 
 	const result = await db

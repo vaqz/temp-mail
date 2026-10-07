@@ -38,11 +38,7 @@ authRoutes.post("/auth/login", async (c) => {
 			);
 		}
 
-		const result = await loginMailbox(
-			c.env.D1,
-			email,
-			password,
-		);
+		const result = await loginMailbox(c.env.D1, email, password);
 
 		if (!result.success) {
 			return c.json(
@@ -61,10 +57,7 @@ authRoutes.post("/auth/login", async (c) => {
 			email: result.accountEmail,
 		});
 	} catch (error) {
-		const message =
-			error instanceof Error
-				? error.message
-				: String(error);
+		const message = error instanceof Error ? error.message : String(error);
 
 		console.error("Mailbox login error:", message);
 
@@ -85,10 +78,7 @@ authRoutes.post("/auth/login", async (c) => {
  */
 authRoutes.get("/auth/me", async (c) => {
 	try {
-		const email = await getAuthenticatedMailboxEmail(
-			c.req.raw,
-			c.env.D1,
-		);
+		const email = await getAuthenticatedMailboxEmail(c.req.raw, c.env.D1);
 
 		if (!email) {
 			return c.json(
@@ -104,10 +94,7 @@ authRoutes.get("/auth/me", async (c) => {
 			email,
 		});
 	} catch (error) {
-		const message =
-			error instanceof Error
-				? error.message
-				: String(error);
+		const message = error instanceof Error ? error.message : String(error);
 
 		console.error("Mailbox session check error:", message);
 
@@ -127,24 +114,15 @@ authRoutes.get("/auth/me", async (c) => {
  */
 authRoutes.post("/auth/logout", async (c) => {
 	try {
-		await logoutMailbox(
-			c.req.raw,
-			c.env.D1,
-		);
+		await logoutMailbox(c.req.raw, c.env.D1);
 
-		c.header(
-			"Set-Cookie",
-			buildLogoutCookie(),
-		);
+		c.header("Set-Cookie", buildLogoutCookie());
 
 		return c.json({
 			success: true,
 		});
 	} catch (error) {
-		const message =
-			error instanceof Error
-				? error.message
-				: String(error);
+		const message = error instanceof Error ? error.message : String(error);
 
 		console.error("Mailbox logout error:", message);
 
@@ -152,10 +130,7 @@ authRoutes.post("/auth/logout", async (c) => {
 		 * Even if the database lookup fails, expire the
 		 * browser cookie so the client is logged out locally.
 		 */
-		c.header(
-			"Set-Cookie",
-			buildLogoutCookie(),
-		);
+		c.header("Set-Cookie", buildLogoutCookie());
 
 		return c.json({
 			success: true,

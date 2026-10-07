@@ -36,13 +36,19 @@ emailRoutes.openapi(getEmailsRoute, async (c) => {
 			 WHERE to_address = ? AND is_public = 1
 			 ORDER BY received_at DESC
 			 LIMIT ? OFFSET ?`,
-		).bind(emailAddress, limit, offset).all();
+		)
+			.bind(emailAddress, limit, offset)
+			.all();
 
-		return c.json(OK(results.map((row: any) => ({
-			...row,
-			has_attachments: Boolean(row.has_attachments),
-			is_public: Boolean(row.is_public),
-		}))));
+		return c.json(
+			OK(
+				results.map((row: any) => ({
+					...row,
+					has_attachments: Boolean(row.has_attachments),
+					is_public: Boolean(row.is_public),
+				})),
+			),
+		);
 	} catch (e) {
 		return c.json(ERR(e instanceof Error ? e.message : String(e), "D1Error"), 500);
 	}
@@ -62,7 +68,9 @@ emailRoutes.openapi(getEmailsCountRoute, async (c) => {
 	try {
 		const result = await c.env.D1.prepare(
 			`SELECT COUNT(*) AS count FROM emails WHERE to_address = ? AND is_public = 1`,
-		).bind(emailAddress).first<{ count: number }>();
+		)
+			.bind(emailAddress)
+			.first<{ count: number }>();
 		return c.json(OK({ count: Number(result?.count || 0) }));
 	} catch (e) {
 		return c.json(ERR(e instanceof Error ? e.message : String(e), "D1Error"), 500);
@@ -77,7 +85,9 @@ emailRoutes.openapi(deleteEmailRoute, async (c) => {
 	try {
 		const email = await c.env.D1.prepare(
 			`SELECT id, to_address FROM emails WHERE id = ? AND is_public = 1`,
-		).bind(emailId).first<{ id: string; to_address: string }>();
+		)
+			.bind(emailId)
+			.first<{ id: string; to_address: string }>();
 		if (!email) return c.json(ERR("Email not found", "NotFound"), 404);
 		if (email.to_address.toLowerCase() !== authenticatedEmail.toLowerCase()) {
 			return c.json(ERR("Mailbox access denied", "Forbidden"), 403);
@@ -85,7 +95,9 @@ emailRoutes.openapi(deleteEmailRoute, async (c) => {
 
 		const { success, error } = await c.env.D1.prepare(
 			`DELETE FROM emails WHERE id = ? AND is_public = 1 AND to_address = ?`,
-		).bind(emailId, authenticatedEmail).run();
+		)
+			.bind(emailId, authenticatedEmail)
+			.run();
 		if (!success) return c.json(ERR(error?.message || "Unable to delete email", "D1Error"), 500);
 		return c.json(OK({ deleted: true }));
 	} catch (e) {

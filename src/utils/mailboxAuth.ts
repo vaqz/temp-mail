@@ -116,8 +116,7 @@ export async function loginMailbox(
 	email: string,
 	password: string,
 ): Promise<
-	| { success: true; accountEmail: string; cookie: string }
-	| { success: false; error: string }
+	{ success: true; accountEmail: string; cookie: string } | { success: false; error: string }
 > {
 	const normalizedEmail = normalizeEmail(email);
 	const supportedDomains = await getActiveMailboxDomains(db);
@@ -135,7 +134,11 @@ export async function loginMailbox(
 		return { success: false, error: "Invalid email or password" };
 	}
 
-	const passwordMatches = await verifyMailboxPassword(password, account.password_hash, account.password_salt);
+	const passwordMatches = await verifyMailboxPassword(
+		password,
+		account.password_hash,
+		account.password_salt,
+	);
 	if (!passwordMatches) return { success: false, error: "Invalid email or password" };
 
 	const token = generateSessionToken();
@@ -164,7 +167,10 @@ export async function loginMailbox(
 	};
 }
 
-export async function getMailboxSession(request: Request, db: D1Database): Promise<MailboxSession | null> {
+export async function getMailboxSession(
+	request: Request,
+	db: D1Database,
+): Promise<MailboxSession | null> {
 	const token = getSessionCookie(request);
 	if (!token) return null;
 	const tokenHash = await sha256(token);
@@ -175,7 +181,10 @@ export async function getMailboxSession(request: Request, db: D1Database): Promi
 	return mailboxSession;
 }
 
-export async function getAuthenticatedMailboxEmail(request: Request, db: D1Database): Promise<string | null> {
+export async function getAuthenticatedMailboxEmail(
+	request: Request,
+	db: D1Database,
+): Promise<string | null> {
 	const session = await getMailboxSession(request, db);
 	return session ? session.account_email : null;
 }

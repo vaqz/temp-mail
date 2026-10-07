@@ -14,7 +14,6 @@ function isAuthorized(c: any): boolean {
 	return auth === `Bearer ${token}`;
 }
 
-
 /* =========================================================
    ADMIN DASHBOARD
 ========================================================= */
@@ -23,13 +22,8 @@ adminRoutes.get("/", async (c) => {
 	const url = new URL(c.req.url);
 	url.pathname = "/admin";
 
-	return adminRoutes.fetch(
-		new Request(url.toString(), c.req.raw),
-		c.env,
-		c.executionCtx,
-	);
+	return adminRoutes.fetch(new Request(url.toString(), c.req.raw), c.env, c.executionCtx);
 });
-
 
 adminRoutes.get("/admin", async (c) => {
 	const html = `<!DOCTYPE html>
@@ -2477,34 +2471,25 @@ document
 	return c.html(html);
 });
 
-
 /* =========================================================
    ADMIN EMAIL LIST
 ========================================================= */
 
-adminRoutes.get(
-	"/admin/emails",
-	async (c) => {
-
-		if (!isAuthorized(c)) {
-
-			return c.json(
-				{
-					error:{
-						message:"Unauthorized"
-					}
+adminRoutes.get("/admin/emails", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
 				},
-				401,
-			);
-		}
+			},
+			401,
+		);
+	}
 
-
-		try{
-
-			const result =
-				await c.env.D1
-					.prepare(
-						`SELECT
+	try {
+		const result = await c.env.D1.prepare(
+			`SELECT
 							id,
 							from_address,
 							to_address,
@@ -2516,83 +2501,52 @@ adminRoutes.get(
 						FROM emails
 						ORDER BY received_at DESC
 						LIMIT 500`,
-					)
-					.all();
+		).all();
 
+		const emails = result.results.map((row: any) => ({
+			...row,
 
-			const emails =
-				result.results.map(
-					(row:any) => ({
-						...row,
+			has_attachments: Boolean(row.has_attachments),
 
-						has_attachments:
-							Boolean(
-								row.has_attachments
-							),
+			is_public: Boolean(row.is_public),
+		}));
 
-						is_public:
-							Boolean(
-								row.is_public
-							),
-					}),
-				);
+		return c.json(emails);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
 
-
-			return c.json(emails);
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
-			return c.json(
-				{
-					error:{
-						message
-					}
+		return c.json(
+			{
+				error: {
+					message,
 				},
-				500,
-			);
-		}
-	},
-);
-
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    READ SINGLE EMAIL
 ========================================================= */
 
-adminRoutes.get(
-	"/admin/emails/:emailId",
-	async (c) => {
-
-		if (!isAuthorized(c)) {
-
-			return c.json(
-				{
-					error:{
-						message:"Unauthorized"
-					}
+adminRoutes.get("/admin/emails/:emailId", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
 				},
-				401,
-			);
-		}
+			},
+			401,
+		);
+	}
 
+	const emailId = c.req.param("emailId");
 
-		const emailId =
-			c.req.param("emailId");
-
-
-		try{
-
-			const result =
-				await c.env.D1
-					.prepare(
-						`SELECT
+	try {
+		const result = await c.env.D1.prepare(
+			`SELECT
 							id,
 							from_address,
 							to_address,
@@ -2606,280 +2560,183 @@ adminRoutes.get(
 						FROM emails
 						WHERE id = ?
 						LIMIT 1`,
-					)
-					.bind(emailId)
-					.first();
+		)
+			.bind(emailId)
+			.first();
 
-
-			if(!result){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"Email not found"
-						}
-					},
-					404,
-				);
-			}
-
-
-			return c.json({
-
-				...result,
-
-				has_attachments:
-					Boolean(
-						(result as any)
-							.has_attachments
-					),
-
-				is_public:
-					Boolean(
-						(result as any)
-							.is_public
-					),
-
-			});
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
+		if (!result) {
 			return c.json(
 				{
-					error:{
-						message
-					}
+					error: {
+						message: "Email not found",
+					},
 				},
-				500,
+				404,
 			);
 		}
-	},
-);
 
+		return c.json({
+			...result,
+
+			has_attachments: Boolean((result as any).has_attachments),
+
+			is_public: Boolean((result as any).is_public),
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		return c.json(
+			{
+				error: {
+					message,
+				},
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    CHANGE EMAIL VISIBILITY
 ========================================================= */
 
-adminRoutes.patch(
-	"/admin/emails/:emailId/visibility",
-	async (c) => {
+adminRoutes.patch("/admin/emails/:emailId/visibility", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
+				},
+			},
+			401,
+		);
+	}
 
-		if (!isAuthorized(c)) {
+	const emailId = c.req.param("emailId");
 
+	try {
+		const body = await c.req.json();
+
+		if (typeof body.is_public !== "boolean") {
 			return c.json(
 				{
-					error:{
-						message:"Unauthorized"
-					}
+					error: {
+						message: "is_public must be a boolean",
+					},
 				},
-				401,
+				400,
 			);
 		}
 
-
-		const emailId =
-			c.req.param("emailId");
-
-
-		try{
-
-			const body =
-				await c.req.json();
-
-
-			if(
-				typeof body.is_public !==
-				"boolean"
-			){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"is_public must be a boolean"
-						}
-					},
-					400,
-				);
-			}
-
-
-			const result =
-				await c.env.D1
-					.prepare(
-						`UPDATE emails
+		const result = await c.env.D1.prepare(
+			`UPDATE emails
 						 SET is_public = ?
 						 WHERE id = ?`,
-					)
-					.bind(
-						body.is_public
-							? 1
-							: 0,
-						emailId,
-					)
-					.run();
+		)
+			.bind(body.is_public ? 1 : 0, emailId)
+			.run();
 
-
-			if(!result.success){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"Failed to update email visibility"
-						}
-					},
-					500,
-				);
-			}
-
-
-			return c.json({
-				success:true,
-				id:emailId,
-				is_public:
-					body.is_public,
-			});
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
+		if (!result.success) {
 			return c.json(
 				{
-					error:{
-						message
-					}
+					error: {
+						message: "Failed to update email visibility",
+					},
 				},
 				500,
 			);
 		}
-	},
-);
 
+		return c.json({
+			success: true,
+			id: emailId,
+			is_public: body.is_public,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		return c.json(
+			{
+				error: {
+					message,
+				},
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    DELETE EMAIL
 ========================================================= */
 
-adminRoutes.delete(
-	"/admin/emails/:emailId",
-	async (c) => {
-
-		if (!isAuthorized(c)) {
-
-			return c.json(
-				{
-					error:{
-						message:"Unauthorized"
-					}
+adminRoutes.delete("/admin/emails/:emailId", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
 				},
-				401,
-			);
-		}
+			},
+			401,
+		);
+	}
 
+	const emailId = c.req.param("emailId");
 
-		const emailId =
-			c.req.param("emailId");
+	try {
+		const dbService = createDatabaseService(c.env.D1);
 
+		const result = await dbService.deleteEmailById(emailId);
 
-		try{
-
-			const dbService =
-				createDatabaseService(
-					c.env.D1
-				);
-
-
-			const result =
-				await dbService.deleteEmailById(
-					emailId
-				);
-
-
-			if(!result.success){
-
-				return c.json(
-					{
-						error:{
-							message:
-								result.error?.message ||
-								"Failed to delete email"
-						}
-					},
-					500,
-				);
-			}
-
-
-			return c.json({
-				success:true,
-				id:emailId,
-			});
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
+		if (!result.success) {
 			return c.json(
 				{
-					error:{
-						message
-					}
+					error: {
+						message: result.error?.message || "Failed to delete email",
+					},
 				},
 				500,
 			);
 		}
-	},
-);
 
+		return c.json({
+			success: true,
+			id: emailId,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		return c.json(
+			{
+				error: {
+					message,
+				},
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    LIST VISIBILITY RULES
 ========================================================= */
 
-adminRoutes.get(
-	"/admin/rules",
-	async (c) => {
-
-		if (!isAuthorized(c)) {
-
-			return c.json(
-				{
-					error:{
-						message:"Unauthorized"
-					}
+adminRoutes.get("/admin/rules", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
 				},
-				401,
-			);
-		}
+			},
+			401,
+		);
+	}
 
-
-		try{
-
-			const result =
-				await c.env.D1
-					.prepare(
-						`SELECT
+	try {
+		const result = await c.env.D1.prepare(
+			`SELECT
 							id,
 							sender_pattern,
 							recipient_pattern,
@@ -2888,197 +2745,130 @@ adminRoutes.get(
 							created_at
 						FROM email_visibility_rules
 						ORDER BY created_at DESC`,
-					)
-					.all();
+		).all();
 
+		return c.json(result.results);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
 
-			return c.json(
-				result.results
-			);
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
-			return c.json(
-				{
-					error:{
-						message
-					}
+		return c.json(
+			{
+				error: {
+					message,
 				},
-				500,
-			);
-		}
-	},
-);
-
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    CREATE VISIBILITY RULE
 ========================================================= */
 
-adminRoutes.post(
-	"/admin/rules",
-	async (c) => {
+adminRoutes.post("/admin/rules", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
+				},
+			},
+			401,
+		);
+	}
 
-		if (!isAuthorized(c)) {
+	try {
+		const body = await c.req.json();
 
+		const senderPattern = String(body.sender_pattern || "").trim();
+
+		const recipientPattern = String(body.recipient_pattern || "").trim();
+
+		const subjectPattern = String(body.subject_pattern || "").trim();
+
+		/*
+		 * Sender is optional.
+		 *
+		 * Blank sender means ANY sender.
+		 *
+		 * Recipient is also optional.
+		 *
+		 * Blank recipient means ANY mailbox.
+		 *
+		 * Subject phrase remains required.
+		 */
+
+		if (!subjectPattern) {
 			return c.json(
 				{
-					error:{
-						message:"Unauthorized"
-					}
+					error: {
+						message: "subject_pattern is required",
+					},
 				},
-				401,
+				400,
 			);
 		}
 
-
-		try{
-
-			const body =
-				await c.req.json();
-
-
-			const senderPattern =
-				String(
-					body.sender_pattern || ""
-				).trim();
-
-
-			const recipientPattern =
-				String(
-					body.recipient_pattern || ""
-				).trim();
-
-
-			const subjectPattern =
-				String(
-					body.subject_pattern || ""
-				).trim();
-
-
-			/*
-			 * Sender is optional.
-			 *
-			 * Blank sender means ANY sender.
-			 *
-			 * Recipient is also optional.
-			 *
-			 * Blank recipient means ANY mailbox.
-			 *
-			 * Subject phrase remains required.
-			 */
-
-			if(!subjectPattern){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"subject_pattern is required"
-						}
+		if (senderPattern.length > 320) {
+			return c.json(
+				{
+					error: {
+						message: "sender_pattern is too long",
 					},
-					400,
-				);
-			}
+				},
+				400,
+			);
+		}
 
-
-			if(
-				senderPattern.length > 320
-			){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"sender_pattern is too long"
-						}
+		if (recipientPattern.length > 320) {
+			return c.json(
+				{
+					error: {
+						message: "recipient_pattern is too long",
 					},
-					400,
-				);
-			}
+				},
+				400,
+			);
+		}
 
-
-			if(
-				recipientPattern.length > 320
-			){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"recipient_pattern is too long"
-						}
+		if (subjectPattern.length > 500) {
+			return c.json(
+				{
+					error: {
+						message: "subject_pattern is too long",
 					},
-					400,
-				);
-			}
+				},
+				400,
+			);
+		}
 
-
-			if(
-				subjectPattern.length > 500
-			){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"subject_pattern is too long"
-						}
-					},
-					400,
-				);
-			}
-
-
-			const existing =
-				await c.env.D1
-					.prepare(
-						`SELECT id
+		const existing = await c.env.D1.prepare(
+			`SELECT id
 						 FROM email_visibility_rules
 						 WHERE action = 'public'
 						   AND LOWER(COALESCE(sender_pattern, '')) = LOWER(?)
 						   AND LOWER(COALESCE(recipient_pattern, '')) = LOWER(?)
 						   AND LOWER(COALESCE(subject_pattern, '')) = LOWER(?)
 						 LIMIT 1`,
-					)
-					.bind(
-						senderPattern,
-						recipientPattern,
-						subjectPattern,
-					)
-					.first();
+		)
+			.bind(senderPattern, recipientPattern, subjectPattern)
+			.first();
 
+		if (existing) {
+			return c.json({
+				success: true,
+				existing: true,
+				id: (existing as any).id,
+			});
+		}
 
-			if(existing){
+		const ruleId = crypto.randomUUID();
 
-				return c.json({
-					success:true,
-					existing:true,
-					id:
-						(existing as any).id,
-				});
-			}
+		const createdAt = Date.now();
 
-
-			const ruleId =
-				crypto.randomUUID();
-
-
-			const createdAt =
-				Date.now();
-
-
-			const result =
-				await c.env.D1
-					.prepare(
-						`INSERT INTO email_visibility_rules
+		const result = await c.env.D1.prepare(
+			`INSERT INTO email_visibility_rules
 							(
 								id,
 								sender_pattern,
@@ -3095,366 +2885,235 @@ adminRoutes.post(
 								'public',
 								?
 							)`,
-					)
-					.bind(
-						ruleId,
-						senderPattern,
-						recipientPattern ||
-							null,
-						subjectPattern,
-						createdAt,
-					)
-					.run();
+		)
+			.bind(ruleId, senderPattern, recipientPattern || null, subjectPattern, createdAt)
+			.run();
 
-
-			if(!result.success){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"Failed to create rule"
-						}
-					},
-					500,
-				);
-			}
-
-
-			return c.json({
-
-				success:true,
-
-				id:ruleId,
-
-				sender_pattern:
-					senderPattern,
-
-				recipient_pattern:
-					recipientPattern ||
-					null,
-
-				subject_pattern:
-					subjectPattern,
-
-				action:"public",
-
-				created_at:
-					createdAt,
-
-			});
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
+		if (!result.success) {
 			return c.json(
 				{
-					error:{
-						message
-					}
+					error: {
+						message: "Failed to create rule",
+					},
 				},
 				500,
 			);
 		}
-	},
-);
 
+		return c.json({
+			success: true,
+
+			id: ruleId,
+
+			sender_pattern: senderPattern,
+
+			recipient_pattern: recipientPattern || null,
+
+			subject_pattern: subjectPattern,
+
+			action: "public",
+
+			created_at: createdAt,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		return c.json(
+			{
+				error: {
+					message,
+				},
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    DELETE VISIBILITY RULE
 ========================================================= */
 
-adminRoutes.delete(
-	"/admin/rules/:ruleId",
-	async (c) => {
-
-		if (!isAuthorized(c)) {
-
-			return c.json(
-				{
-					error:{
-						message:"Unauthorized"
-					}
+adminRoutes.delete("/admin/rules/:ruleId", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
 				},
-				401,
-			);
-		}
+			},
+			401,
+		);
+	}
 
+	const ruleId = c.req.param("ruleId");
 
-		const ruleId =
-			c.req.param("ruleId");
-
-
-		try{
-
-			const result =
-				await c.env.D1
-					.prepare(
-						`DELETE FROM email_visibility_rules
+	try {
+		const result = await c.env.D1.prepare(
+			`DELETE FROM email_visibility_rules
 						 WHERE id = ?`,
-					)
-					.bind(ruleId)
-					.run();
+		)
+			.bind(ruleId)
+			.run();
 
-
-			if(!result.success){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"Failed to delete rule"
-						}
-					},
-					500,
-				);
-			}
-
-
-			return c.json({
-				success:true,
-				id:ruleId,
-			});
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
+		if (!result.success) {
 			return c.json(
 				{
-					error:{
-						message
-					}
+					error: {
+						message: "Failed to delete rule",
+					},
 				},
 				500,
 			);
 		}
-	},
-);
 
+		return c.json({
+			success: true,
+			id: ruleId,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		return c.json(
+			{
+				error: {
+					message,
+				},
+			},
+			500,
+		);
+	}
+});
 
 /* =========================================================
    MANUAL MAILBOX SYNC
 ========================================================= */
 
-adminRoutes.post(
-	"/admin/sync/mailboxes",
-	async (c) => {
-
-		if (!isAuthorized(c)) {
-
-			return c.json(
-				{
-					error:{
-						message:"Unauthorized"
-					}
+adminRoutes.post("/admin/sync/mailboxes", async (c) => {
+	if (!isAuthorized(c)) {
+		return c.json(
+			{
+				error: {
+					message: "Unauthorized",
 				},
-				401,
-			);
-		}
+			},
+			401,
+		);
+	}
 
+	try {
+		const env = c.env as CloudflareBindings & {
+			MANUAL_SYNC_SCRIPT_URL?: string;
+			MANUAL_SYNC_SECRET?: string;
+		};
 
-		try{
+		const scriptUrl = env.MANUAL_SYNC_SCRIPT_URL;
 
-			const env =
-				c.env as CloudflareBindings & {
-					MANUAL_SYNC_SCRIPT_URL?: string;
-					MANUAL_SYNC_SECRET?: string;
-				};
+		const secret = env.MANUAL_SYNC_SECRET;
 
-
-			const scriptUrl =
-				env.MANUAL_SYNC_SCRIPT_URL;
-
-
-			const secret =
-				env.MANUAL_SYNC_SECRET;
-
-
-			if(!scriptUrl){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"MANUAL_SYNC_SCRIPT_URL is not configured."
-						}
-					},
-					500,
-				);
-			}
-
-
-			if(!secret){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"MANUAL_SYNC_SECRET is not configured."
-						}
-					},
-					500,
-				);
-			}
-
-
-			const response =
-				await fetch(
-					scriptUrl,
-					{
-						method:"POST",
-
-						headers:{
-							"Content-Type":
-								"application/json"
-						},
-
-						body:
-							JSON.stringify({
-								secret:secret
-							}),
-					},
-				);
-
-
-			const responseText =
-				await response.text();
-
-
-			if(!response.ok){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"Google Apps Script sync failed. HTTP " +
-								response.status
-						}
-					},
-					502,
-				);
-			}
-
-
-			let result:any;
-
-
-			try{
-
-				result =
-					JSON.parse(
-						responseText
-					);
-
-			}catch(error){
-
-				return c.json(
-					{
-						error:{
-							message:
-								"Google Apps Script returned an invalid response."
-						}
-					},
-					502,
-				);
-			}
-
-
-			if(
-				result &&
-				result.success === false
-			){
-
-				return c.json(
-					{
-						error:{
-							message:
-								result.error ||
-								"Mailbox sync failed."
-						}
-					},
-					502,
-				);
-			}
-
-
-const syncResult =
-    result &&
-    result.result != null
-        ? result.result
-        : result;
-
-
-return c.json({
-
-    success: true,
-
-    result: {
-        success:
-            syncResult.success !== false,
-
-        accounts:
-            Number(
-                syncResult.accounts || 0
-            ),
-
-        created:
-            Number(
-                syncResult.created || 0
-            ),
-
-        updated:
-            Number(
-                syncResult.updated || 0
-            ),
-
-        disabled:
-            Number(
-                syncResult.disabled || 0
-            ),
-
-        unchanged:
-            Number(
-                syncResult.unchanged || 0
-            ),
-    },
-
-});
-
-
-		}catch(error){
-
-			const message =
-				error instanceof Error
-					? error.message
-					: String(error);
-
-
+		if (!scriptUrl) {
 			return c.json(
 				{
-					error:{
-						message:
-							"Mailbox sync failed: " +
-							message
-					}
+					error: {
+						message: "MANUAL_SYNC_SCRIPT_URL is not configured.",
+					},
 				},
 				500,
 			);
 		}
-	},
-);
 
+		if (!secret) {
+			return c.json(
+				{
+					error: {
+						message: "MANUAL_SYNC_SECRET is not configured.",
+					},
+				},
+				500,
+			);
+		}
+
+		const response = await fetch(scriptUrl, {
+			method: "POST",
+
+			headers: {
+				"Content-Type": "application/json",
+			},
+
+			body: JSON.stringify({
+				secret: secret,
+			}),
+		});
+
+		const responseText = await response.text();
+
+		if (!response.ok) {
+			return c.json(
+				{
+					error: {
+						message: "Google Apps Script sync failed. HTTP " + response.status,
+					},
+				},
+				502,
+			);
+		}
+
+		let result: any;
+
+		try {
+			result = JSON.parse(responseText);
+		} catch (error) {
+			return c.json(
+				{
+					error: {
+						message: "Google Apps Script returned an invalid response.",
+					},
+				},
+				502,
+			);
+		}
+
+		if (result && result.success === false) {
+			return c.json(
+				{
+					error: {
+						message: result.error || "Mailbox sync failed.",
+					},
+				},
+				502,
+			);
+		}
+
+		const syncResult = result && result.result != null ? result.result : result;
+
+		return c.json({
+			success: true,
+
+			result: {
+				success: syncResult.success !== false,
+
+				accounts: Number(syncResult.accounts || 0),
+
+				created: Number(syncResult.created || 0),
+
+				updated: Number(syncResult.updated || 0),
+
+				disabled: Number(syncResult.disabled || 0),
+
+				unchanged: Number(syncResult.unchanged || 0),
+			},
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		return c.json(
+			{
+				error: {
+					message: "Mailbox sync failed: " + message,
+				},
+			},
+			500,
+		);
+	}
+});
 
 export default adminRoutes;

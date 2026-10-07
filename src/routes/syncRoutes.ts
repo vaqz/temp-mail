@@ -7,8 +7,16 @@ const syncRoutes = new OpenAPIHono<{
 
 const MAX_BATCH_SIZE = 50;
 
-interface SyncAccount { email: string; password: string }
-interface SyncRequest { mode?: "accounts" | "reconcile" | "test"; accounts?: SyncAccount[]; emails?: string[]; partial?: boolean }
+interface SyncAccount {
+	email: string;
+	password: string;
+}
+interface SyncRequest {
+	mode?: "accounts" | "reconcile" | "test";
+	accounts?: SyncAccount[];
+	emails?: string[];
+	partial?: boolean;
+}
 
 function isAuthorized(c: any): boolean {
 	const auth = c.req.header("Authorization");
@@ -17,17 +25,32 @@ function isAuthorized(c: any): boolean {
 }
 
 function normalizeEmail(value: unknown): string {
-	return String(value || "").trim().toLowerCase();
+	return String(value || "")
+		.trim()
+		.toLowerCase();
 }
 
 function isAllowedDomain(email: string, domains: string[]): boolean {
 	return domains.some((domain) => email.endsWith(`@${domain}`));
 }
 
-async function hashPassword(password: string, saltBytes?: Uint8Array): Promise<{ hash: string; salt: string }> {
+async function hashPassword(
+	password: string,
+	saltBytes?: Uint8Array,
+): Promise<{ hash: string; salt: string }> {
 	const salt = saltBytes || crypto.getRandomValues(new Uint8Array(16));
-	const passwordKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-	const derivedBits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, passwordKey, 256);
+	const passwordKey = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(password),
+		"PBKDF2",
+		false,
+		["deriveBits"],
+	);
+	const derivedBits = await crypto.subtle.deriveBits(
+		{ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+		passwordKey,
+		256,
+	);
 	return { hash: bytesToBase64(new Uint8Array(derivedBits)), salt: bytesToBase64(salt) };
 }
 
@@ -45,8 +68,18 @@ function base64ToBytes(value: string): Uint8Array {
 }
 
 async function verifyPassword(password: string, hash: string, salt: string): Promise<boolean> {
-	const passwordKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-	const derivedBits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: base64ToBytes(salt), iterations: 100000, hash: "SHA-256" }, passwordKey, 256);
+	const passwordKey = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(password),
+		"PBKDF2",
+		false,
+		["deriveBits"],
+	);
+	const derivedBits = await crypto.subtle.deriveBits(
+		{ name: "PBKDF2", salt: base64ToBytes(salt), iterations: 100000, hash: "SHA-256" },
+		passwordKey,
+		256,
+	);
 	const derived = new Uint8Array(derivedBits);
 	const stored = base64ToBytes(hash);
 	if (derived.length !== stored.length) return false;
@@ -59,12 +92,14 @@ async function getExistingAccounts(c: any, domains: string[]) {
 	if (domains.length === 0) return [];
 	const placeholders = domains.map(() => "email LIKE ?").join(" OR ");
 	const query = `SELECT email, password_hash, password_salt, is_active FROM mailbox_accounts WHERE ${placeholders}`;
-	const result = await c.env.D1.prepare(query).bind(...domains.map((domain) => `%@${domain}`)).all<{
-		email: string;
-		password_hash: string | null;
-		password_salt: string | null;
-		is_active: number;
-	}>();
+	const result = await c.env.D1.prepare(query)
+		.bind(...domains.map((domain) => `%@${domain}`))
+		.all<{
+			email: string;
+			password_hash: string | null;
+			password_salt: string | null;
+			is_active: number;
+		}>();
 	return result.results;
 }
 
@@ -87,33 +122,51 @@ syncRoutes.post("/sync/mailbox-accounts", async (c) => {
 		const mode = body.mode || "accounts";
 
 		if (mode === "test") {
-			return c.json({ success: true, message: "Cloudflare mailbox sync connection is working.", domains });
+			return c.json({
+				success: true,
+				message: "Cloudflare mailbox sync connection is working.",
+				domains,
+			});
 		}
 
 		if (mode === "reconcile") {
-			if (!Array.isArray(body.emails)) return c.json({ error: { message: "emails must be an array" } }, 400);
+			if (!Array.isArray(body.emails))
+				return c.json({ error: { message: "emails must be an array" } }, 400);
 			const allowedEmails = new Set<string>();
 			for (const value of body.emails) {
 				const email = normalizeEmail(value);
-				if (email && isAllowedDomain(email, domains) && email.length <= 320) allowedEmails.add(email);
+				if (email && isAllowedDomain(email, domains) && email.length <= 320)
+					allowedEmails.add(email);
 			}
 			const existing = await getExistingAccounts(c, domains);
 			const statements: any[] = [];
 			for (const row of existing) {
 				const email = row.email.toLowerCase();
 				if (!allowedEmails.has(email) && row.is_active !== 0) {
-					statements.push(c.env.D1.prepare(`UPDATE mailbox_accounts SET is_active = 0, updated_at = ? WHERE email = ?`).bind(Date.now(), email));
+					statements.push(
+						c.env.D1.prepare(
+							`UPDATE mailbox_accounts SET is_active = 0, updated_at = ? WHERE email = ?`,
+						).bind(Date.now(), email),
+					);
 				}
 			}
 			for (let i = 0; i < statements.length; i += 100) {
 				const chunk = statements.slice(i, i + 100);
 				if (chunk.length) await c.env.D1.batch(chunk);
 			}
-			return c.json({ success: true, mode: "reconcile", checked: allowedEmails.size, disabled: statements.length, domains });
+			return c.json({
+				success: true,
+				mode: "reconcile",
+				checked: allowedEmails.size,
+				disabled: statements.length,
+				domains,
+			});
 		}
 
-		if (!Array.isArray(body.accounts)) return c.json({ error: { message: "accounts must be an array" } }, 400);
-		if (body.accounts.length > MAX_BATCH_SIZE) return c.json({ error: { message: `Maximum ${MAX_BATCH_SIZE} accounts per batch` } }, 400);
+		if (!Array.isArray(body.accounts))
+			return c.json({ error: { message: "accounts must be an array" } }, 400);
+		if (body.accounts.length > MAX_BATCH_SIZE)
+			return c.json({ error: { message: `Maximum ${MAX_BATCH_SIZE} accounts per batch` } }, 400);
 
 		const normalizedAccounts = new Map<string, string>();
 		for (const account of body.accounts) {
@@ -138,20 +191,36 @@ syncRoutes.post("/sync/mailbox-accounts", async (c) => {
 
 			if (!password) {
 				if (!current) {
-					statements.push(c.env.D1.prepare(`INSERT INTO mailbox_accounts (email, password_hash, password_salt, is_active, created_at, updated_at) VALUES (?, NULL, NULL, 0, ?, ?)`).bind(email, now, now));
+					statements.push(
+						c.env.D1.prepare(
+							`INSERT INTO mailbox_accounts (email, password_hash, password_salt, is_active, created_at, updated_at) VALUES (?, NULL, NULL, 0, ?, ?)`,
+						).bind(email, now, now),
+					);
 					created++;
 				} else if (current.is_active !== 0) {
-					statements.push(c.env.D1.prepare(`UPDATE mailbox_accounts SET is_active = 0, updated_at = ? WHERE email = ?`).bind(now, email));
+					statements.push(
+						c.env.D1.prepare(
+							`UPDATE mailbox_accounts SET is_active = 0, updated_at = ? WHERE email = ?`,
+						).bind(now, email),
+					);
 					disabled++;
 				}
 				continue;
 			}
 
 			if (current?.password_hash && current.password_salt) {
-				const matches = await verifyPassword(password, current.password_hash, current.password_salt);
+				const matches = await verifyPassword(
+					password,
+					current.password_hash,
+					current.password_salt,
+				);
 				if (matches) {
 					if (current.is_active !== 1) {
-						statements.push(c.env.D1.prepare(`UPDATE mailbox_accounts SET is_active = 1, updated_at = ? WHERE email = ?`).bind(now, email));
+						statements.push(
+							c.env.D1.prepare(
+								`UPDATE mailbox_accounts SET is_active = 1, updated_at = ? WHERE email = ?`,
+							).bind(now, email),
+						);
 						updated++;
 					} else {
 						unchanged++;
@@ -162,18 +231,39 @@ syncRoutes.post("/sync/mailbox-accounts", async (c) => {
 
 			const passwordData = await hashPassword(password);
 			if (!current) {
-				statements.push(c.env.D1.prepare(`INSERT INTO mailbox_accounts (email, password_hash, password_salt, is_active, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`).bind(email, passwordData.hash, passwordData.salt, now, now));
+				statements.push(
+					c.env.D1.prepare(
+						`INSERT INTO mailbox_accounts (email, password_hash, password_salt, is_active, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`,
+					).bind(email, passwordData.hash, passwordData.salt, now, now),
+				);
 				created++;
 			} else {
-				statements.push(c.env.D1.prepare(`UPDATE mailbox_accounts SET password_hash = ?, password_salt = ?, is_active = 1, updated_at = ? WHERE email = ?`).bind(passwordData.hash, passwordData.salt, now, email));
+				statements.push(
+					c.env.D1.prepare(
+						`UPDATE mailbox_accounts SET password_hash = ?, password_salt = ?, is_active = 1, updated_at = ? WHERE email = ?`,
+					).bind(passwordData.hash, passwordData.salt, now, email),
+				);
 				updated++;
 			}
 		}
 
 		if (statements.length) await c.env.D1.batch(statements);
-		return c.json({ success: true, mode: "accounts", partial: body.partial === true, synced: accounts.length, created, updated, disabled, unchanged, domains });
+		return c.json({
+			success: true,
+			mode: "accounts",
+			partial: body.partial === true,
+			synced: accounts.length,
+			created,
+			updated,
+			disabled,
+			unchanged,
+			domains,
+		});
 	} catch (error) {
-		return c.json({ error: { message: error instanceof Error ? error.message : String(error) } }, 500);
+		return c.json(
+			{ error: { message: error instanceof Error ? error.message : String(error) } },
+			500,
+		);
 	}
 });
 

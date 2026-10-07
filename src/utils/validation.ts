@@ -5,10 +5,7 @@ import { isActiveMailboxDomain } from "@/utils/mailboxDomains";
 /**
  * Validate email domain against the active D1 mailbox-domain configuration.
  */
-export async function validateEmailDomain(
-	db: D1Database,
-	emailAddress: string,
-) {
+export async function validateEmailDomain(db: D1Database, emailAddress: string) {
 	const domain = getDomain(emailAddress).trim().toLowerCase();
 	const supported = await isActiveMailboxDomain(db, domain);
 
@@ -25,9 +22,7 @@ export async function validateEmailDomain(
 		return {
 			valid: false,
 			error: ERR("Domain not supported", "DomainError", {
-				supported_domains: supportedDomains.results.map((row) =>
-					String(row.domain).toLowerCase(),
-				),
+				supported_domains: supportedDomains.results.map((row) => String(row.domain).toLowerCase()),
 			}),
 		};
 	}

@@ -256,11 +256,7 @@ export class DatabaseService {
 	}
 
 	// Optimized attachment query
-	async getEmailsWithAttachments(
-		emailAddress: string,
-		limit: number,
-		offset: number,
-	) {
+	async getEmailsWithAttachments(emailAddress: string, limit: number, offset: number) {
 		try {
 			const { results, error } = await this.db
 				.prepare(

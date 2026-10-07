@@ -2,17 +2,8 @@ import { cors } from "hono/cors";
 
 const corsMiddleware = cors({
 	origin: "https://mail.vaqzmobiz.com",
-	allowMethods: [
-		"GET",
-		"POST",
-		"DELETE",
-		"PATCH",
-		"OPTIONS",
-	],
-	allowHeaders: [
-		"Content-Type",
-		"Authorization",
-	],
+	allowMethods: ["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
+	allowHeaders: ["Content-Type", "Authorization"],
 	credentials: true,
 });
 

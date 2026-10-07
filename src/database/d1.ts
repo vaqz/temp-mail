@@ -70,10 +70,7 @@ export async function getEmailsByRecipient(
  */
 export async function getEmailById(db: D1Database, emailId: string) {
 	try {
-		const emailResult = await db
-			.prepare("SELECT * FROM emails WHERE id = ?")
-			.bind(emailId)
-			.first();
+		const emailResult = await db.prepare("SELECT * FROM emails WHERE id = ?").bind(emailId).first();
 
 		if (emailResult) {
 			const convertedResult = {
@@ -115,10 +112,7 @@ export async function deleteOldEmails(db: D1Database, timestamp: number) {
 /**
  * Delete emails by recipient email address
  */
-export async function deleteEmailsByRecipient(
-	db: D1Database,
-	emailAddress: string,
-) {
+export async function deleteEmailsByRecipient(db: D1Database, emailAddress: string) {
 	try {
 		const { success, error, meta } = await db
 			.prepare("DELETE FROM emails WHERE to_address = ?")
@@ -152,15 +146,10 @@ export async function deleteEmailById(db: D1Database, emailId: string) {
 /**
  * Count emails by recipient email address
  */
-export async function countEmailsByRecipient(
-	db: D1Database,
-	emailAddress: string,
-) {
+export async function countEmailsByRecipient(db: D1Database, emailAddress: string) {
 	try {
 		const result = await db
-			.prepare(
-				"SELECT count(*) as count FROM emails WHERE to_address = ?",
-			)
+			.prepare("SELECT count(*) as count FROM emails WHERE to_address = ?")
 			.bind(emailAddress)
 			.first<{ count: number }>();
 
@@ -177,10 +166,7 @@ export async function countEmailsByRecipient(
 /**
  * Insert an attachment into the database
  */
-export async function insertAttachment(
-	db: D1Database,
-	attachmentData: Attachment,
-) {
+export async function insertAttachment(db: D1Database, attachmentData: Attachment) {
 	try {
 		const { success, error, meta } = await db
 			.prepare(
@@ -208,10 +194,7 @@ export async function insertAttachment(
 /**
  * Get attachments by email ID
  */
-export async function getAttachmentsByEmailId(
-	db: D1Database,
-	emailId: string,
-) {
+export async function getAttachmentsByEmailId(db: D1Database, emailId: string) {
 	try {
 		const { results } = await db
 			.prepare(
@@ -236,10 +219,7 @@ export async function getAttachmentsByEmailId(
 /**
  * Get attachment by ID (with R2 key for download)
  */
-export async function getAttachmentById(
-	db: D1Database,
-	attachmentId: string,
-) {
+export async function getAttachmentById(db: D1Database, attachmentId: string) {
 	try {
 		const result = await db
 			.prepare("SELECT * FROM attachments WHERE id = ?")
@@ -259,10 +239,7 @@ export async function getAttachmentById(
 /**
  * Delete attachment by ID
  */
-export async function deleteAttachmentById(
-	db: D1Database,
-	attachmentId: string,
-) {
+export async function deleteAttachmentById(db: D1Database, attachmentId: string) {
 	try {
 		const { success, error, meta } = await db
 			.prepare("DELETE FROM attachments WHERE id = ?")
@@ -279,10 +256,7 @@ export async function deleteAttachmentById(
 /**
  * Delete all attachments for an email
  */
-export async function deleteAttachmentsByEmailId(
-	db: D1Database,
-	emailId: string,
-) {
+export async function deleteAttachmentsByEmailId(db: D1Database, emailId: string) {
 	try {
 		const { success, error, meta } = await db
 			.prepare("DELETE FROM attachments WHERE email_id = ?")
@@ -307,9 +281,7 @@ export async function updateEmailAttachmentInfo(
 ) {
 	try {
 		const { success, error, meta } = await db
-			.prepare(
-				"UPDATE emails SET has_attachments = ?, attachment_count = ? WHERE id = ?",
-			)
+			.prepare("UPDATE emails SET has_attachments = ?, attachment_count = ? WHERE id = ?")
 			.bind(hasAttachments, attachmentCount, emailId)
 			.run();
 
@@ -398,7 +370,6 @@ export async function getEmailsWithAttachments(
 	}
 }
 
-
 /* =========================================================
    MAILBOX AUTHENTICATION
 ========================================================= */
@@ -415,10 +386,7 @@ export interface MailboxAccount {
 /**
  * Get a mailbox account by email address
  */
-export async function getMailboxAccount(
-	db: D1Database,
-	email: string,
-) {
+export async function getMailboxAccount(db: D1Database, email: string) {
 	try {
 		const result = await db
 			.prepare(
@@ -466,14 +434,7 @@ export async function createMailboxSession(
 					(id, account_email, token_hash, expires_at, created_at, last_used_at)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
 			)
-			.bind(
-				id,
-				accountEmail,
-				tokenHash,
-				expiresAt,
-				createdAt,
-				createdAt,
-			)
+			.bind(id, accountEmail, tokenHash, expiresAt, createdAt, createdAt)
 			.run();
 
 		return { success, error, meta };
@@ -490,10 +451,7 @@ export async function createMailboxSession(
 /**
  * Get a session by its token hash
  */
-export async function getMailboxSessionByTokenHash(
-	db: D1Database,
-	tokenHash: string,
-) {
+export async function getMailboxSessionByTokenHash(db: D1Database, tokenHash: string) {
 	try {
 		const result = await db
 			.prepare(
@@ -556,15 +514,10 @@ export async function updateMailboxSessionLastUsed(
 /**
  * Delete a specific mailbox session
  */
-export async function deleteMailboxSession(
-	db: D1Database,
-	sessionId: string,
-) {
+export async function deleteMailboxSession(db: D1Database, sessionId: string) {
 	try {
 		const { success, error, meta } = await db
-			.prepare(
-				"DELETE FROM mailbox_sessions WHERE id = ?",
-			)
+			.prepare("DELETE FROM mailbox_sessions WHERE id = ?")
 			.bind(sessionId)
 			.run();
 
@@ -582,14 +535,10 @@ export async function deleteMailboxSession(
 /**
  * Delete expired mailbox sessions
  */
-export async function deleteExpiredMailboxSessions(
-	db: D1Database,
-) {
+export async function deleteExpiredMailboxSessions(db: D1Database) {
 	try {
 		const { success, error, meta } = await db
-			.prepare(
-				"DELETE FROM mailbox_sessions WHERE expires_at <= ?",
-			)
+			.prepare("DELETE FROM mailbox_sessions WHERE expires_at <= ?")
 			.bind(Date.now())
 			.run();
 
@@ -602,4 +551,4 @@ export async function deleteExpiredMailboxSessions(
 			meta: undefined,
 		};
 	}
-} 
+}

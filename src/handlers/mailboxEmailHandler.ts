@@ -1,8 +1,5 @@
 import { handleEmail as storeAndProcessEmail } from "@/handlers/emailHandler";
-import {
-	getActiveDomainDestinations,
-	isActiveMailboxDomain,
-} from "@/utils/mailboxDomains";
+import { getActiveDomainDestinations, isActiveMailboxDomain } from "@/utils/mailboxDomains";
 
 /**
  * Main email entrypoint.
