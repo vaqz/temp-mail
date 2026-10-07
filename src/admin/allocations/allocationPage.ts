@@ -3,7 +3,7 @@ export const ALLOCATION_CONSOLE_PAGE = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="/admin/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://vaqzmobiz.com/assets/favicon.svg" type="image/svg+xml">
 <title>Vaqz Mobiz · Sales & Allocation</title>
 <style>
 *{box-sizing:border-box}
