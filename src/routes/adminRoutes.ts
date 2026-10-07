@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createDatabaseService } from "@/database";
+import { writeAdminAudit } from "@/utils/adminAudit";
 
 const adminRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -2647,6 +2648,14 @@ adminRoutes.patch("/admin/emails/:emailId/visibility", async (c) => {
 			);
 		}
 
+		await writeAdminAudit(c, {
+			action: "UPDATE_EMAIL_VISIBILITY",
+			resourceType: "email",
+			resourceId: emailId,
+			summary: body.is_public ? "Email made public." : "Email made private.",
+			details: { is_public: body.is_public },
+		});
+
 		return c.json({
 			success: true,
 			id: emailId,
@@ -2699,6 +2708,13 @@ adminRoutes.delete("/admin/emails/:emailId", async (c) => {
 				500,
 			);
 		}
+
+		await writeAdminAudit(c, {
+			action: "DELETE_EMAIL",
+			resourceType: "email",
+			resourceId: emailId,
+			summary: "Email deleted.",
+		});
 
 		return c.json({
 			success: true,
@@ -2900,6 +2916,18 @@ adminRoutes.post("/admin/rules", async (c) => {
 			);
 		}
 
+		await writeAdminAudit(c, {
+			action: "CREATE_RULE",
+			resourceType: "email_visibility_rule",
+			resourceId: ruleId,
+			summary: "Automatic public rule created.",
+			details: {
+				sender_pattern: senderPattern,
+				recipient_pattern: recipientPattern || null,
+				subject_pattern: subjectPattern,
+			},
+		});
+
 		return c.json({
 			success: true,
 
@@ -2965,6 +2993,13 @@ adminRoutes.delete("/admin/rules/:ruleId", async (c) => {
 				500,
 			);
 		}
+
+		await writeAdminAudit(c, {
+			action: "DELETE_RULE",
+			resourceType: "email_visibility_rule",
+			resourceId: ruleId,
+			summary: "Automatic public rule deleted.",
+		});
 
 		return c.json({
 			success: true,
@@ -3084,6 +3119,19 @@ adminRoutes.post("/admin/sync/mailboxes", async (c) => {
 		}
 
 		const syncResult = result && result.result != null ? result.result : result;
+
+		await writeAdminAudit(c, {
+			action: "MAILBOX_SYNC",
+			resourceType: "mailbox_sync",
+			summary: "Mailbox synchronization completed.",
+			details: {
+				accounts: Number(syncResult.accounts || 0),
+				created: Number(syncResult.created || 0),
+				updated: Number(syncResult.updated || 0),
+				disabled: Number(syncResult.disabled || 0),
+				unchanged: Number(syncResult.unchanged || 0),
+			},
+		});
 
 		return c.json({
 			success: true,
