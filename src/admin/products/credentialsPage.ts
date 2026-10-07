@@ -65,6 +65,16 @@ export const CREDENTIAL_MANAGEMENT_PAGE = `<!doctype html>
      if(details.expires_at)lines.push('Expires: '+formatDateValue(details.expires_at));
      return lines.length?lines.join('\\n'):'Allocation recorded';
    }
+   if(type==='RELEASED'){
+     var released=[];
+     if(details.customer_name)released.push('Customer: '+details.customer_name);
+     if(details.product_name)released.push('Product: '+details.product_name);
+     if(details.mode)released.push('Mode: '+details.mode);
+     if(details.slot_name||details.slot_number)released.push('Slot: '+(details.slot_name||('Slot '+details.slot_number)));
+     if(details.reason)released.push('Reason: '+(details.reason==='EXPIRED'?'Expired':'Manual release'));
+     if(details.expires_at)released.push('Expires: '+formatDateValue(details.expires_at));
+     return released.length?released.join('\\n'):'Allocation released';
+   }
    if(type==='CREATED'){
      var created=[];
      if(details.account_email)created.push('Account: '+details.account_email);
