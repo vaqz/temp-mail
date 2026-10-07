@@ -43,7 +43,7 @@ body{margin:0;background:#f4f7fb;color:#10234d;font-family:Inter,system-ui,sans-
 .detail-row:last-child{border-bottom:0}
 .detail-label{color:#64748b}
 .detail-value{font-weight:700;text-align:right;word-break:break-word}
-.status-ok{color:#15803d}
+.status-ok{color:#15803d}.history-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}.history-table th,.history-table td{padding:10px 9px;border-bottom:1px solid #eef2f7;text-align:left;vertical-align:top}.history-table th{font-size:11px;text-transform:uppercase;color:#64748b}.history-table td strong{display:block}.status-pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#eef2ff;font-size:11px;font-weight:800}.history-wrap{overflow:auto}
 .modal-actions{display:flex;gap:10px;padding:18px 24px 24px}
 .modal-actions .btn{flex:1}
 @media(max-width:760px){.wrap{padding:12px}.grid{grid-template-columns:1fr}.header{align-items:flex-start;flex-direction:column}.modal-actions{flex-direction:column}}
@@ -57,6 +57,12 @@ body{margin:0;background:#f4f7fb;color:#10234d;font-family:Inter,system-ui,sans-
 <div><a class="btn secondary" href="/admin/products" style="text-decoration:none">Products</a> <a class="btn secondary" href="/admin/credentials" style="text-decoration:none">Credentials</a></div>
 </div>
 <div id="notice" class="notice" style="display:none"></div>
+</section>
+
+<section class="card">
+<div class="header"><div><h2 style="margin:0">Allocation History</h2><div class="muted">Recent customer allocations and their current status.</div></div><button id="refreshHistory" class="btn secondary" type="button">Refresh</button></div>
+<div id="historyLoading" class="muted" style="margin-top:14px">Loading allocation history…</div>
+<div id="historyWrap" class="history-wrap" style="display:none"><table class="history-table"><thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Mode</th><th>Slot</th><th>Term</th><th>Status</th></tr></thead><tbody id="historyBody"></tbody></table></div>
 </section>
 
 <section class="card">
@@ -175,6 +181,19 @@ $('allocate').disabled=true;
 window.scrollTo({top:0,behavior:'smooth'});
 }
 
+async function loadHistory(){
+try{
+	$('historyLoading').style.display='block';$('historyWrap').style.display='none';
+	const d=await api('/admin/api/allocation/history');const items=d.items||[];
+	$('historyBody').innerHTML=items.length?items.map(function(x){
+		const customer=x.customer?.display_name||x.customer?.name||x.customer?.email||'—';
+		const product=x.product?.name||x.product?.code||'—';const mode=x.mode?.mode||x.mode?.display_name||'—';
+		return '<tr><td>'+esc(new Date(x.created_at).toLocaleString())+'</td><td><strong>'+esc(customer)+'</strong><span class="muted">'+esc(x.customer?.email||'')+'</span></td><td>'+esc(product)+'</td><td>'+esc(mode)+'</td><td>Slot '+esc(x.slot_number||'—')+(x.slot_name?' · '+esc(x.slot_name):'')+'</td><td>'+esc(x.term_months||'—')+' month(s)</td><td><span class="status-pill">'+esc(x.status||'—')+'</span></td></tr>';
+	}).join(''):'<tr><td colspan="7" class="muted">No allocations recorded yet.</td></tr>';
+	$('historyLoading').style.display='none';$('historyWrap').style.display='block';
+}catch(e){$('historyLoading').textContent=e.message}
+}
+
 async function init(){
 try{
 const d=await api('/admin/api/allocation/setup');
@@ -185,10 +204,11 @@ $('product').onchange=loadModes;
 $('mode').onchange=loadSlots;
 $('allocate').onclick=allocate;
 $('closeSuccess').onclick=closeSuccess;
-$('newSale').onclick=resetForNewSale;
+$('newSale').onclick=resetForNewSale;$('refreshHistory').onclick=loadHistory;
 $('successModal').addEventListener('click',e=>{if(e.target===$('successModal'))closeSuccess()});
 $('name').oninput=renderSummary;$('term').onchange=renderSummary;$('price').oninput=renderSummary;$('tier').onchange=renderSummary;
 }catch(e){note(e.message,true)}
+await loadHistory();
 }
 
 async function loadModes(){
@@ -246,6 +266,7 @@ const d=await api('/admin/api/allocation/allocate',{method:'POST',body:JSON.stri
 note('Order '+d.order_number+' created and slot allocated successfully.');
 openSuccess(d,details);
 await loadSlots();
+await loadHistory();
 }catch(e){note(e.message,true)}finally{$('allocate').disabled=!state.selectedSlot;$('allocate').textContent='Create Paid Order & Allocate'}
 }
 
