@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { DOMAINS_CSS } from "@/admin/domains/domainsCss";
 import { DOMAINS_JS } from "@/admin/domains/domainsJs";
 import { DOMAINS_PAGE } from "@/admin/domains/domainsPage";
+import { isAdminAuthorized } from "@/utils/adminAuth";
 
 const domainManagerUiRoutes = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
