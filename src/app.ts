@@ -27,7 +27,8 @@ app.use(corsMiddleware);
 app.use("/admin/*", async (c, next) => {
 	const authorization = c.req.header("Authorization");
 	const authorized = await isAdminAuthorized(c);
-	if (authorized && !authorization) {
+	const isSessionCheck = c.req.path === "/admin/api/auth/session";
+	if (authorized && !authorization && !isSessionCheck) {
 		const headers = new Headers(c.req.raw.headers);
 		headers.set("Authorization", `Bearer ${String(c.env.ADMIN_TOKEN)}`);
 		c.req.raw = new Request(c.req.raw, { headers });
