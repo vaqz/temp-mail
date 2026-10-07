@@ -509,10 +509,7 @@ async function confirmRule() {
   const sender = $("modalSender").value.trim();
   const recipient = $("modalRecipient").value.trim();
   const subject = $("modalSubject").value.trim();
-  if (!sender || !recipient || !subject) {
-    notice("Sender, recipient and subject phrase are required.", "error");
-    return;
-  }
+  // All fields are optional. A blank field means "match any" for that field.
   try {
     await api("/admin/emails/" + encodeURIComponent(selectedEmailId) + "/visibility", {
       method: "PATCH",
@@ -536,10 +533,6 @@ async function addRule() {
   const sender = $("newRuleSender").value.trim();
   const recipient = $("newRuleRecipient").value.trim();
   const subject = $("newRuleSubject").value.trim();
-  if (!subject) {
-    notice("Subject phrase is required.", "error");
-    return;
-  }
   try {
     await api("/admin/rules", {
       method: "POST",
