@@ -42,10 +42,23 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
 
     <div id="globalMessage" class="notice"></div>
 
-    <section class="stats">
+    <section class="stats kpi-grid">
+      <div class="stat"><div class="stat-label">Total Credentials</div><div id="kpiCredentials" class="stat-value">—</div><div id="kpiCredentialsFoot" class="stat-foot">Loading inventory</div></div>
+      <div class="stat"><div class="stat-label">Active Allocations</div><div id="kpiAllocations" class="stat-value">—</div><div id="kpiAllocationsFoot" class="stat-foot">Loading subscriptions</div></div>
+      <div class="stat"><div class="stat-label">Inventory Utilization</div><div id="kpiUtilization" class="stat-value">—</div><div id="kpiUtilizationFoot" class="stat-foot">Active slots in use</div></div>
+      <div class="stat"><div class="stat-label">Active Products</div><div id="kpiProducts" class="stat-value">—</div><div id="kpiProductsFoot" class="stat-foot">Configured products</div></div>
       <div class="stat"><div class="stat-label">Total Emails</div><div id="totalCount" class="stat-value">0</div><div class="stat-foot">All stored messages</div></div>
-      <div class="stat"><div class="stat-label">Public</div><div id="publicCount" class="stat-value">0</div><div class="stat-foot">Visible through the public mailbox API</div></div>
-      <div class="stat"><div class="stat-label">Private</div><div id="privateCount" class="stat-value">0</div><div class="stat-foot">Visible only through authenticated access</div></div>
+      <div class="stat"><div class="stat-label">Public Emails</div><div id="publicCount" class="stat-value">0</div><div class="stat-foot">Visible through public mailbox API</div></div>
+    </section>
+
+    <section class="dashboard-panels">
+      <div class="card mini-panel"><div class="header"><div><h2>Credential Health</h2><div class="muted">Current inventory status.</div></div></div><div class="health-row"><span>Active</span><strong id="kpiCredentialActive">—</strong></div><div class="health-row"><span>Suspended</span><strong id="kpiCredentialSuspended">—</strong></div><div class="health-row"><span>Archived</span><strong id="kpiCredentialArchived">—</strong></div></div>
+      <div class="card mini-panel"><div class="header"><div><h2>Allocation Health</h2><div class="muted">Current subscription status.</div></div></div><div class="health-row"><span>Active</span><strong id="kpiAllocationActive">—</strong></div><div class="health-row"><span>Inactive / Released</span><strong id="kpiAllocationInactive">—</strong></div><div class="health-row"><span>Expired but still active</span><strong id="kpiAllocationExpired">—</strong></div></div>
+    </section>
+
+    <section class="dashboard-panels">
+      <div class="card activity-panel"><div class="header"><div><h2>Recent Credential Activity</h2><div class="muted">Latest lifecycle events.</div></div><a href="/admin/credentials" class="btn ghost">Credentials</a></div><div id="recentCredentialEvents" class="activity-list"><div class="empty">Loading...</div></div></div>
+      <div class="card activity-panel"><div class="header"><div><h2>Recent Admin Activity</h2><div class="muted">Latest audited actions.</div></div><a href="/admin/audit" class="btn ghost">Audit Log</a></div><div id="recentAudit" class="activity-list"><div class="empty">Loading...</div></div></div>
     </section>
 
     <section class="card">
