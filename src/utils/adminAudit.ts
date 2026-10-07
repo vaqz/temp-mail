@@ -93,7 +93,7 @@ export async function listAdminAudits(
   if (!response.ok) throw new Error(parseSupabaseError(data, text, response.status));
 
   const range = response.headers.get("Content-Range") || "";
-  const totalMatch = range.match(/\\/(\\d+|\\*)$/);
+  const totalMatch = range.match(/\/(\d+|\*)$/);
   const total = totalMatch && totalMatch[1] !== "*" ? Number(totalMatch[1]) : Array.isArray(data) ? data.length : 0;
   return { items: Array.isArray(data) ? data : [], total };
 }
