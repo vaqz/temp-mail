@@ -2698,11 +2698,11 @@ adminRoutes.delete("/admin/emails/:emailId", async (c) => {
 
 		const result = await dbService.deleteEmailById(emailId);
 
-		if (!result.success) {
+		if (result.error) {
 			return c.json(
 				{
 					error: {
-						message: result.error?.message || "Failed to delete email",
+						message: result.error.message || "Failed to delete email",
 					},
 				},
 				500,
@@ -2804,27 +2804,14 @@ adminRoutes.post("/admin/rules", async (c) => {
 		const subjectPattern = String(body.subject_pattern || "").trim();
 
 		/*
-		 * Sender is optional.
+		 * All rule fields are optional.
 		 *
 		 * Blank sender means ANY sender.
-		 *
-		 * Recipient is also optional.
-		 *
 		 * Blank recipient means ANY mailbox.
+		 * Blank subject means ANY subject.
 		 *
-		 * Subject phrase remains required.
+		 * This allows a rule to be as broad or specific as needed.
 		 */
-
-		if (!subjectPattern) {
-			return c.json(
-				{
-					error: {
-						message: "subject_pattern is required",
-					},
-				},
-				400,
-			);
-		}
 
 		if (senderPattern.length > 320) {
 			return c.json(
