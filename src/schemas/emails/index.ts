@@ -31,25 +31,18 @@ export const emailQuerySchema = z.object({
 		.optional()
 		.default(10)
 		.openapi({ example: 20, description: "The maximum number of emails to return." }),
-	offset: z.coerce
-		.number()
-		.min(0)
-		.optional()
-		.default(0)
-		.openapi({
-			example: 0,
-			description: "The number of emails to skip before starting to return results.",
-		}),
+	offset: z.coerce.number().min(0).optional().default(0).openapi({
+		example: 0,
+		description: "The number of emails to skip before starting to return results.",
+	}),
 });
 
 export const emailSchema = z
 	.object({
-		id: z
-			.string()
-			.openapi({
-				description: "The unique identifier for the email.",
-				example: "usm2sw0qfv9a5ku9z4xmh8og",
-			}),
+		id: z.string().openapi({
+			description: "The unique identifier for the email.",
+			example: "usm2sw0qfv9a5ku9z4xmh8og",
+		}),
 		from_address: z
 			.string()
 			.openapi({ description: "The sender's email address.", example: "sender@example.com" }),
@@ -60,12 +53,10 @@ export const emailSchema = z
 			.string()
 			.nullable()
 			.openapi({ description: "The subject of the email.", example: "Welcome to our service" }),
-		received_at: z
-			.number()
-			.openapi({
-				description: "The timestamp when the email was received (Unix epoch).",
-				example: 1753317948,
-			}),
+		received_at: z.number().openapi({
+			description: "The timestamp when the email was received (Unix epoch).",
+			example: 1753317948,
+		}),
 		html_content: z
 			.string()
 			.nullable()
@@ -91,12 +82,10 @@ export const emailSchema = z
 
 export const emailSummarySchema = z
 	.object({
-		id: z
-			.string()
-			.openapi({
-				description: "The unique identifier for the email.",
-				example: "usm2sw0qfv9a5ku9z4xmh8og",
-			}),
+		id: z.string().openapi({
+			description: "The unique identifier for the email.",
+			example: "usm2sw0qfv9a5ku9z4xmh8og",
+		}),
 		from_address: z
 			.string()
 			.openapi({ description: "The sender's email address.", example: "sender@example.com" }),
@@ -107,12 +96,10 @@ export const emailSummarySchema = z
 			.string()
 			.nullable()
 			.openapi({ description: "The subject of the email.", example: "Welcome to our service" }),
-		received_at: z
-			.number()
-			.openapi({
-				description: "The timestamp when the email was received (Unix epoch).",
-				example: 1753317948,
-			}),
+		received_at: z.number().openapi({
+			description: "The timestamp when the email was received (Unix epoch).",
+			example: 1753317948,
+		}),
 		has_attachments: z
 			.boolean()
 			.default(false)
@@ -154,12 +141,10 @@ export const errorResponseSchema = z
 
 export const validationErrorResponseSchema = z
 	.object({
-		success: z
-			.literal(false)
-			.openapi({
-				description: "Indicates that the request failed due to a validation error.",
-				example: false,
-			}),
+		success: z.literal(false).openapi({
+			description: "Indicates that the request failed due to a validation error.",
+			example: false,
+		}),
 		error: z.object({
 			name: z.string().openapi({ description: "The name of the error.", example: "ZodError" }),
 			message: z
@@ -192,12 +177,10 @@ export const emailsDeleteSuccessResponseSchema = z
 			.literal(true)
 			.openapi({ description: "Indicates if the request was successful.", example: true }),
 		result: z.object({
-			message: z
-				.literal("Emails deleted successfully")
-				.openapi({
-					description: "A message indicating that the emails were deleted.",
-					example: "Emails deleted successfully",
-				}),
+			message: z.literal("Emails deleted successfully").openapi({
+				description: "A message indicating that the emails were deleted.",
+				example: "Emails deleted successfully",
+			}),
 			deleted_count: z
 				.number()
 				.openapi({ description: "The number of emails deleted.", example: 2 }),
@@ -211,12 +194,10 @@ export const emailDeleteSuccessResponseSchema = z
 			.literal(true)
 			.openapi({ description: "Indicates if the request was successful.", example: true }),
 		result: z.object({
-			message: z
-				.literal("Email deleted successfully")
-				.openapi({
-					description: "A message indicating that the email was deleted.",
-					example: "Email deleted successfully",
-				}),
+			message: z.literal("Email deleted successfully").openapi({
+				description: "A message indicating that the email was deleted.",
+				example: "Email deleted successfully",
+			}),
 		}),
 	})
 	.openapi("DeleteEmailSuccessResponse");
@@ -226,23 +207,19 @@ export const domainsSuccessResponseSchema = z
 		success: z
 			.literal(true)
 			.openapi({ description: "Indicates if the request was successful.", example: true }),
-		result: z
-			.array(z.string())
-			.openapi({
-				description: "A list of currently active mailbox domains managed in the database.",
-				example: ["vaqzmobiz.com", "vmhub.top"],
-			}),
+		result: z.array(z.string()).openapi({
+			description: "A list of currently active mailbox domains managed in the database.",
+			example: ["vaqzmobiz.com", "vmhub.top"],
+		}),
 	})
 	.openapi("DomainsSuccessResponse");
 
 export const domainErrorResponseSchema = z
 	.object({
-		success: z
-			.literal(false)
-			.openapi({
-				description: "Indicates that the request failed due to a domain error.",
-				example: false,
-			}),
+		success: z.literal(false).openapi({
+			description: "Indicates that the request failed due to a domain error.",
+			example: false,
+		}),
 		error: z.object({
 			name: z
 				.literal("DomainError")
@@ -252,24 +229,20 @@ export const domainErrorResponseSchema = z
 				.openapi({ description: "The error message.", example: "Domain not supported" }),
 		}),
 		note: z.object({
-			supported_domains: z
-				.array(z.string())
-				.openapi({
-					description: "A list of currently active mailbox domains.",
-					example: ["vaqzmobiz.com", "vmhub.top"],
-				}),
+			supported_domains: z.array(z.string()).openapi({
+				description: "A list of currently active mailbox domains.",
+				example: ["vaqzmobiz.com", "vmhub.top"],
+			}),
 		}),
 	})
 	.openapi("DomainErrorResponse");
 
 export const notFoundErrorResponseSchema = z
 	.object({
-		success: z
-			.literal(false)
-			.openapi({
-				description: "Indicates that the request failed because the email was not found.",
-				example: false,
-			}),
+		success: z.literal(false).openapi({
+			description: "Indicates that the request failed because the email was not found.",
+			example: false,
+		}),
 		error: z.object({
 			name: z
 				.literal("NotFound")
