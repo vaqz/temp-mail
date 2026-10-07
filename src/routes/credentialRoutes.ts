@@ -175,7 +175,17 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 				if (String(oldValue ?? "") !== String(newValue ?? "")) changes[key] = { from: oldValue ?? null, to: newValue };
 			}
 			if (Object.keys(changes).length) {
-				await recordCredentialEvent(c, credentialId, "UPDATED", { changes });
+				const statusChange = changes.status as { from?: unknown; to?: unknown } | undefined;
+				const eventType = statusChange
+					? statusChange.to === "SUSPENDED"
+						? "SUSPENDED"
+						: statusChange.to === "ARCHIVED"
+							? "ARCHIVED"
+							: statusChange.from === "SUSPENDED" && statusChange.to === "ACTIVE"
+								? "RESTORED"
+								: "UPDATED"
+					: "UPDATED";
+				await recordCredentialEvent(c, credentialId, eventType, { changes });
 				await writeAdminAudit(c, {
 					action: "UPDATE_CREDENTIAL",
 					resourceType: "credential",
