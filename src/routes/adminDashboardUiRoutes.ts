@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { ADMIN_DASHBOARD_CSS } from "@/admin/dashboard/dashboardCss";
 import { ADMIN_DASHBOARD_JS } from "@/admin/dashboard/dashboardJs";
 import { ADMIN_DASHBOARD_PAGE } from "@/admin/dashboard/dashboardPage";
+import { writeAdminAudit } from "@/utils/adminAudit";
 
 const adminDashboardUiRoutes = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
@@ -142,6 +143,13 @@ adminDashboardUiRoutes.post("/admin/api/emails/bulk", async (c) => {
 		const results = await c.env.D1.batch(statements);
 		let deleted = 0;
 		for (const result of results) deleted += Number(result.meta?.changes || 0);
+
+		await writeAdminAudit(c, {
+			action: "DELETE_EMAIL_BULK",
+			resourceType: "email",
+			summary: `${deleted} email${deleted === 1 ? "" : "s"} deleted in bulk.`,
+			details: { requested: ids.length, deleted },
+		});
 
 		return c.json({ success: true, requested: ids.length, deleted });
 	} catch (error) {
