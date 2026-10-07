@@ -204,7 +204,15 @@ productRoutes.post("/admin/api/products", async (c) => {
       if (rows.length) await sb(c, "product_rules", { method: "POST", body: JSON.stringify(rows) });
     }
 
-    await writeAdminAudit(c, {\n      action: body?.id ? "UPDATE_PRODUCT" : "CREATE_PRODUCT",\n      resourceType: "product",\n      resourceId: product.id,\n      summary: `${body?.id ? "Updated" : "Created"} product ${product.name} (${product.code}).`,\n      details: { code: product.code, name: product.name, status: product.status },\n    });\n\n    return c.json({ success: true, id: product.id });
+    await writeAdminAudit(c, {
+      action: body?.id ? "UPDATE_PRODUCT" : "CREATE_PRODUCT",
+      resourceType: "product",
+      resourceId: product.id,
+      summary: `${body?.id ? "Updated" : "Created"} product ${product.name} (${product.code}).`,
+      details: { code: product.code, name: product.name, status: product.status },
+    });
+
+    return c.json({ success: true, id: product.id });
   } catch (error) {
     return c.json({ error: { message: error instanceof Error ? error.message : String(error) } }, 500);
   }
