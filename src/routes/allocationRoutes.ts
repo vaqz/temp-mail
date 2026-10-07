@@ -150,6 +150,88 @@ allocationRoutes.get("/admin/api/allocation/history", async (c) => {
 	}
 });
 
+async function releaseAllocation(c: any, allocationId: string, reason: string) {
+	const rows = await sb(
+		c,
+		"allocations?id=eq." + encodeURIComponent(allocationId) + "&select=id,credential_id,customer_id,slot_number,slot_name,term_months,starts_at,expires_at,status,order_item_id&limit=1",
+	);
+	const allocation = rows?.[0];
+	if (!allocation) throw new Error("Allocation not found.");
+	if (allocation.status !== "ACTIVE") return { allocation, changed: false };
+
+	await sb(c, "allocations?id=eq." + encodeURIComponent(allocationId), {
+		method: "PATCH",
+		body: JSON.stringify({ status: "INACTIVE" }),
+	});
+
+	if (allocation.credential_id) {
+		await sb(c, "credential_events", {
+			method: "POST",
+			body: JSON.stringify({
+				credential_id: allocation.credential_id,
+				event_type: "RELEASED",
+				details: {
+					allocation_id: allocation.id,
+					customer_id: allocation.customer_id,
+					slot_number: allocation.slot_number,
+					slot_name: allocation.slot_name,
+					term_months: allocation.term_months,
+					starts_at: allocation.starts_at,
+					expires_at: allocation.expires_at,
+					reason,
+				},
+			}),
+		});
+	}
+	return { allocation, changed: true };
+}
+
+allocationRoutes.post("/admin/api/allocation/:allocationId/release", async (c) => {
+	if (!(await isAdminAuthorized(c))) return unauthorized(c);
+	try {
+		const allocationId = c.req.param("allocationId");
+		const result = await releaseAllocation(c, allocationId, "MANUAL_RELEASE");
+		if (result.changed) {
+			await writeAdminAudit(c, {
+				action: "RELEASE_ALLOCATION",
+				resourceType: "allocation",
+				resourceId: allocationId,
+				summary: "Released allocation.",
+				details: { reason: "MANUAL_RELEASE" },
+			});
+		}
+		return c.json({ success: true, released: result.changed });
+	} catch (e) {
+		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
+	}
+});
+
+allocationRoutes.post("/admin/api/allocation/release-expired", async (c) => {
+	if (!(await isAdminAuthorized(c))) return unauthorized(c);
+	try {
+		const rows = await sb(
+			c,
+			"allocations?status=eq.ACTIVE&expires_at=lte." + encodeURIComponent(new Date().toISOString()) + "&select=id",
+		);
+		let released = 0;
+		for (const row of rows || []) {
+			const result = await releaseAllocation(c, row.id, "EXPIRED");
+			if (result.changed) released++;
+		}
+		if (released) {
+			await writeAdminAudit(c, {
+				action: "RELEASE_EXPIRED_ALLOCATIONS",
+				resourceType: "allocation",
+				summary: `Released ${released} expired allocation(s).`,
+				details: { reason: "EXPIRED", count: released },
+			});
+		}
+		return c.json({ success: true, released });
+	} catch (e) {
+		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
+	}
+});
+
 allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 	if (!(await isAdminAuthorized(c))) return unauthorized(c);
 	try {
