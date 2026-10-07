@@ -49,6 +49,7 @@ export const ADMIN_DASHBOARD_PAGE = `<!doctype html>
       <div class="stat"><div class="stat-label">Active Products</div><div id="kpiProducts" class="stat-value">—</div><div id="kpiProductsFoot" class="stat-foot">Configured products</div></div>
       <div class="stat"><div class="stat-label">Total Emails</div><div id="totalCount" class="stat-value">0</div><div class="stat-foot">All stored messages</div></div>
       <div class="stat"><div class="stat-label">Public Emails</div><div id="publicCount" class="stat-value">0</div><div class="stat-foot">Visible through public mailbox API</div></div>
+      <div class="stat"><div class="stat-label">Private Emails</div><div id="privateCount" class="stat-value">0</div><div class="stat-foot">Visible only through authenticated access</div></div>
     </section>
 
     <section class="dashboard-panels">
