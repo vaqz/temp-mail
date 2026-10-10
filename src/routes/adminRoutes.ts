@@ -3072,7 +3072,7 @@ adminRoutes.post("/admin/sync/mailboxes", async (c) => {
 			return c.json(
 				{
 					error: {
-						message: "Google Apps Script sync failed. HTTP " + response.status,
+						message: `Google Apps Script sync failed. HTTP ${response.status}`,
 					},
 				},
 				502,
@@ -3143,7 +3143,7 @@ adminRoutes.post("/admin/sync/mailboxes", async (c) => {
 		return c.json(
 			{
 				error: {
-					message: "Mailbox sync failed: " + message,
+					message: `Mailbox sync failed: ${message}`,
 				},
 			},
 			500,

@@ -167,7 +167,7 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 			);
 			const existing = existingRows?.[0];
 			if (!existing) return c.json({ error: { message: "Credential not found." } }, 404);
-			await sb(c, "credentials?id=eq." + encodeURIComponent(credentialId), {
+			await sb(c, `credentials?id=eq.${encodeURIComponent(credentialId)}`, {
 				method: "PATCH",
 				body: JSON.stringify({
 					product_id: productId,
@@ -214,7 +214,7 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 					action: "UPDATE_CREDENTIAL",
 					resourceType: "credential",
 					resourceId: credentialId,
-					summary: "Updated credential " + email + ".",
+					summary: `Updated credential ${email}.`,
 					details: { changes },
 				});
 			}

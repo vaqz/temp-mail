@@ -176,7 +176,7 @@ async function releaseAllocation(c: any, allocationId: string, reason: string) {
 	if (!allocation) throw new Error("Allocation not found.");
 	if (allocation.status !== "ACTIVE") return { allocation, changed: false };
 
-	await sb(c, "allocations?id=eq." + encodeURIComponent(allocationId), {
+	await sb(c, `allocations?id=eq.${encodeURIComponent(allocationId)}`, {
 		method: "PATCH",
 		body: JSON.stringify({ status: "INACTIVE" }),
 	});
