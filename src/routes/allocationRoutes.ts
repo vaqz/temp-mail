@@ -140,7 +140,12 @@ allocationRoutes.get("/admin/api/allocation/history", async (c) => {
 			: [];
 		const productIds = [...new Set((modes || []).map((x: any) => x.product_id).filter(Boolean))];
 		const products = productIds.length
-			? await sb(c, "products?id=in.(" + productIds.map(encodeURIComponent).join(",") + ")&select=id,name,code")
+			? await sb(
+					c,
+					"products?id=in.(" +
+						productIds.map(encodeURIComponent).join(",") +
+						")&select=id,name,code",
+				)
 			: [];
 		const customerMap = new Map((customers || []).map((x: any) => [x.id, x]));
 		const modeMap = new Map((modes || []).map((x: any) => [x.id, x]));
@@ -163,7 +168,9 @@ allocationRoutes.get("/admin/api/allocation/history", async (c) => {
 async function releaseAllocation(c: any, allocationId: string, reason: string) {
 	const rows = await sb(
 		c,
-		"allocations?id=eq." + encodeURIComponent(allocationId) + "&select=id,credential_id,customer_id,slot_number,slot_name,term_months,starts_at,expires_at,status,order_item_id&limit=1",
+		"allocations?id=eq." +
+			encodeURIComponent(allocationId) +
+			"&select=id,credential_id,customer_id,slot_number,slot_name,term_months,starts_at,expires_at,status,order_item_id&limit=1",
 	);
 	const allocation = rows?.[0];
 	if (!allocation) throw new Error("Allocation not found.");
@@ -176,7 +183,12 @@ async function releaseAllocation(c: any, allocationId: string, reason: string) {
 
 	if (allocation.credential_id) {
 		const customerRows = allocation.customer_id
-			? await sb(c, "customers?id=eq." + encodeURIComponent(allocation.customer_id) + "&select=name,display_name,email&limit=1")
+			? await sb(
+					c,
+					"customers?id=eq." +
+						encodeURIComponent(allocation.customer_id) +
+						"&select=name,display_name,email&limit=1",
+				)
 			: [];
 		const customerRecord = customerRows?.[0];
 		await sb(c, "credential_events", {
@@ -187,7 +199,8 @@ async function releaseAllocation(c: any, allocationId: string, reason: string) {
 				details: {
 					allocation_id: allocation.id,
 					customer_id: allocation.customer_id,
-					customer_name: customerRecord?.display_name || customerRecord?.name || customerRecord?.email || null,
+					customer_name:
+						customerRecord?.display_name || customerRecord?.name || customerRecord?.email || null,
 					slot_number: allocation.slot_number,
 					slot_name: allocation.slot_name,
 					term_months: allocation.term_months,
@@ -226,7 +239,9 @@ allocationRoutes.post("/admin/api/allocation/release-expired", async (c) => {
 	try {
 		const rows = await sb(
 			c,
-			"allocations?status=eq.ACTIVE&expires_at=lte." + encodeURIComponent(new Date().toISOString()) + "&select=id",
+			"allocations?status=eq.ACTIVE&expires_at=lte." +
+				encodeURIComponent(new Date().toISOString()) +
+				"&select=id",
 		);
 		let released = 0;
 		for (const row of rows || []) {
@@ -301,14 +316,31 @@ allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 		if (!result?.allocation_id) throw new Error("Order/allocation was not created.");
 		const allocationRows = await sb(
 			c,
-			"allocations?id=eq." + encodeURIComponent(result.allocation_id) + "&select=id,credential_id,customer_id,slot_number,slot_name,term_months,starts_at,expires_at,status,order_item_id&limit=1",
+			"allocations?id=eq." +
+				encodeURIComponent(result.allocation_id) +
+				"&select=id,credential_id,customer_id,slot_number,slot_name,term_months,starts_at,expires_at,status,order_item_id&limit=1",
 		);
 		const allocation = allocationRows?.[0];
 		if (allocation?.credential_id) {
-			const customerRows = await sb(c, "customers?id=eq." + encodeURIComponent(allocation.customer_id) + "&select=name,display_name,email&limit=1");
-			const modeRows = await sb(c, "product_modes?id=eq." + encodeURIComponent(String(body.product_mode_id)) + "&select=mode,display_name,product_id&limit=1");
+			const customerRows = await sb(
+				c,
+				"customers?id=eq." +
+					encodeURIComponent(allocation.customer_id) +
+					"&select=name,display_name,email&limit=1",
+			);
+			const modeRows = await sb(
+				c,
+				"product_modes?id=eq." +
+					encodeURIComponent(String(body.product_mode_id)) +
+					"&select=mode,display_name,product_id&limit=1",
+			);
 			const productRows = modeRows?.[0]?.product_id
-				? await sb(c, "products?id=eq." + encodeURIComponent(modeRows[0].product_id) + "&select=name,code&limit=1")
+				? await sb(
+						c,
+						"products?id=eq." +
+							encodeURIComponent(modeRows[0].product_id) +
+							"&select=name,code&limit=1",
+					)
 				: [];
 			const customerRecord = customerRows?.[0];
 			const modeRecord = modeRows?.[0];
@@ -321,7 +353,8 @@ allocationRoutes.post("/admin/api/allocation/allocate", async (c) => {
 					details: {
 						allocation_id: allocation.id,
 						customer_id: allocation.customer_id,
-						customer_name: customerRecord?.display_name || customerRecord?.name || customerRecord?.email || null,
+						customer_name:
+							customerRecord?.display_name || customerRecord?.name || customerRecord?.email || null,
 						product_name: productRecord?.name || productRecord?.code || null,
 						mode: modeRecord?.display_name || modeRecord?.mode || null,
 						slot_number: allocation.slot_number,

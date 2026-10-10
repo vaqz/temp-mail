@@ -159,7 +159,12 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 
 		const credentialId = body?.id ? String(body.id) : "";
 		if (credentialId) {
-			const existingRows = await sb(c, "credentials?id=eq." + encodeURIComponent(credentialId) + "&select=id,product_id,account_email,status,label,notes,purchase_cost,purchase_date&limit=1");
+			const existingRows = await sb(
+				c,
+				"credentials?id=eq." +
+					encodeURIComponent(credentialId) +
+					"&select=id,product_id,account_email,status,label,notes,purchase_cost,purchase_date&limit=1",
+			);
 			const existing = existingRows?.[0];
 			if (!existing) return c.json({ error: { message: "Credential not found." } }, 404);
 			await sb(c, "credentials?id=eq." + encodeURIComponent(credentialId), {
@@ -168,7 +173,10 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 					product_id: productId,
 					supplier_id: body?.supplier_id || null,
 					account_email: email,
-					purchase_cost: body?.purchase_cost == null || body.purchase_cost === "" ? null : Number(body.purchase_cost),
+					purchase_cost:
+						body?.purchase_cost == null || body.purchase_cost === ""
+							? null
+							: Number(body.purchase_cost),
 					purchase_date: body?.purchase_date || null,
 					status: body?.status || "ACTIVE",
 					label: body?.label || null,
@@ -176,10 +184,19 @@ credentialRoutes.post("/admin/api/credentials", async (c) => {
 				}),
 			});
 			const changes: Record<string, unknown> = {};
-			for (const key of ["product_id", "account_email", "status", "label", "notes", "purchase_cost", "purchase_date"]) {
+			for (const key of [
+				"product_id",
+				"account_email",
+				"status",
+				"label",
+				"notes",
+				"purchase_cost",
+				"purchase_date",
+			]) {
 				const oldValue = existing[key];
 				const newValue = body[key] == null || body[key] === "" ? null : body[key];
-				if (String(oldValue ?? "") !== String(newValue ?? "")) changes[key] = { from: oldValue ?? null, to: newValue };
+				if (String(oldValue ?? "") !== String(newValue ?? ""))
+					changes[key] = { from: oldValue ?? null, to: newValue };
 			}
 			if (Object.keys(changes).length) {
 				const statusChange = changes.status as { from?: unknown; to?: unknown } | undefined;
