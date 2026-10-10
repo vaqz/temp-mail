@@ -51,7 +51,14 @@ function unauthorized(c: any) {
 chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 	if (!chatraceAuthorized(c)) return unauthorized(c);
 	try {
-		const messengerId = String(c.req.query("messenger_user_id") || "").trim();
+		// ChatRace exposes {{user_id}}. Accept it as an alias while keeping
+		// messenger_user_id compatible with existing flows.
+		const messengerId = String(
+			c.req.query("messenger_user_id") || c.req.query("user_id") || "",
+		).trim();
+		const rawProduct = String(c.req.query("product") || "").trim();
+		// Avoid letting a user-controlled search string alter PostgREST filters.
+		const productQuery = rawProduct.replace(/[^a-zA-Z0-9 _-]/g, "").trim();
 		let tierCode = "RETAIL";
 		if (messengerId) {
 			const customers = await sb(
@@ -71,17 +78,35 @@ chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 			`pricing_tiers?code=eq.${encodeURIComponent(tierCode)}&active=eq.true&select=id,code,name&limit=1`,
 		);
 		if (!tiers?.[0]) throw new Error("Customer price list is not configured.");
-		const prices = await sb(
-			c,
-			`product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_id,product_mode_id,term_months,price&order=term_months.asc`,
-		);
+
 		const products = await sb(
 			c,
-			"products?status=eq.ACTIVE&select=id,code,name,description&order=name.asc",
+			productQuery
+				? `products?status=eq.ACTIVE&or=(code.ilike.${encodeURIComponent(productQuery)},name.ilike.*${encodeURIComponent(productQuery)}*)&select=id,code,name,description&order=name.asc`
+				: "products?status=eq.ACTIVE&select=id,code,name,description&order=name.asc",
 		);
+		if (productQuery && !products?.length) {
+			return c.json({
+				success: true,
+				pricing_tier: tierCode,
+				query: productQuery,
+				items: [],
+				message: "No matching active product was found.",
+			});
+		}
+		const productIds = (products || []).map((p: any) => p.id);
 		const modes = await sb(
 			c,
-			"product_modes?active=eq.true&select=id,product_id,mode,display_name&order=mode.asc",
+			productQuery
+				? `product_modes?active=eq.true&product_id=in.(${productIds.map(encodeURIComponent).join(",")})&select=id,product_id,mode,display_name&order=mode.asc`
+				: "product_modes?active=eq.true&select=id,product_id,mode,display_name&order=mode.asc",
+		);
+		const modeIds = (modes || []).map((m: any) => m.id);
+		const prices = await sb(
+			c,
+			modeIds.length
+				? `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&product_mode_id=in.(${modeIds.map(encodeURIComponent).join(",")})&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`
+				: `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`,
 		);
 		const modeMap = new Map((modes || []).map((m: any) => [m.id, m]));
 		const productMap = new Map((products || []).map((p: any) => [p.id, p]));
@@ -101,12 +126,16 @@ chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 				};
 			})
 			.filter(Boolean);
-		return c.json({ success: true, pricing_tier: tierCode, items: catalog });
+		return c.json({
+			success: true,
+			pricing_tier: tierCode,
+			...(productQuery ? { query: productQuery } : {}),
+			items: catalog,
+		});
 	} catch (e) {
 		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
 	}
 });
-
 chatraceRoutes.post("/api/chatrace/quote", async (c) => {
 	if (!chatraceAuthorized(c)) return unauthorized(c);
 	try {
