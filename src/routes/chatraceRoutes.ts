@@ -102,12 +102,15 @@ chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 				: "product_modes?active=eq.true&select=id,product_id,mode,display_name&order=mode.asc",
 		);
 		const modeIds = (modes || []).map((m: any) => m.id);
-		const prices = await sb(
-			c,
-			modeIds.length
-				? `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&product_mode_id=in.(${modeIds.map(encodeURIComponent).join(",")})&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`
-				: `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`,
-		);
+		const prices =
+			productQuery && !modeIds.length
+				? []
+				: await sb(
+						c,
+						modeIds.length
+							? `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&product_mode_id=in.(${modeIds.map(encodeURIComponent).join(",")})&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`
+							: `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`,
+					);
 		const modeMap = new Map((modes || []).map((m: any) => [m.id, m]));
 		const productMap = new Map((products || []).map((p: any) => [p.id, p]));
 		const catalog = (prices || [])
