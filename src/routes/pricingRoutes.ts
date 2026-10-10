@@ -70,10 +70,18 @@ pricingRoutes.post("/admin/api/pricing", async c => {
     if (new Set(normalized.map((item: any) => item.term_months)).size !== normalized.length) {
       return c.json({ error: { message: "Each subscription term can appear only once." } }, 400);
     }
+    const existingPrices = await sb(c, `product_term_prices?product_mode_id=eq.${encodeURIComponent(modeId)}&pricing_tier_id=eq.${encodeURIComponent(tierId)}&active=eq.true&select=id,term_months,price`);
+    const submittedTerms = new Set(normalized.map((item: any) => item.term_months));
+    for (const old of (existingPrices || []).filter((row: any) => !submittedTerms.has(Number(row.term_months)))) {
+      await sb(c, `product_term_prices?id=eq.${encodeURIComponent(old.id)}`, {
+        method: "PATCH", headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ active: false, effective_until: new Date().toISOString() }),
+      });
+    }
     for (const item of normalized) {
-      const current = await sb(c, `product_term_prices?product_mode_id=eq.${encodeURIComponent(modeId)}&pricing_tier_id=eq.${encodeURIComponent(tierId)}&term_months=eq.${item.term_months}&active=eq.true&select=id,price`);
-      if (current?.[0] && Number(current[0].price) === item.price) continue;
-      if (current?.[0]) {
+      const current = (existingPrices || []).filter((row: any) => Number(row.term_months) === item.term_months);
+      if (current[0] && Number(current[0].price) === item.price) continue;
+      if (current[0]) {
         await sb(c, `product_term_prices?id=eq.${encodeURIComponent(current[0].id)}`, {
           method: "PATCH", headers: { Prefer: "return=minimal" },
           body: JSON.stringify({ active: false, effective_until: new Date().toISOString() }),
