@@ -3083,7 +3083,7 @@ adminRoutes.post("/admin/sync/mailboxes", async (c) => {
 
 		try {
 			result = JSON.parse(responseText);
-		} catch (error) {
+		} catch {
 			return c.json(
 				{
 					error: {
