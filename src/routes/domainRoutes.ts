@@ -1,4 +1,3 @@
-import { getActiveDomainDestinations, getActiveMailboxDomains } from "@/utils/mailboxDomains";
 import { isAdminAuthorized } from "@/utils/adminAuth";
 import { writeAdminAudit } from "@/utils/adminAudit";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -46,7 +45,7 @@ domainRoutes.get("/admin/api/domains", async (c) => {
 			`SELECT id, domain, destination_email, is_active, created_at, updated_at FROM mailbox_domain_destinations ORDER BY domain ASC, destination_email ASC`,
 		).all();
 		const grouped = new Map<string, any[]>();
-		for (const row of destinations.results as Array<any>) {
+		for (const row of destinations.results as any[]) {
 			const list = grouped.get(String(row.domain)) || [];
 			list.push(row);
 			grouped.set(String(row.domain), list);
