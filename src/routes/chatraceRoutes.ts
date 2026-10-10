@@ -44,6 +44,49 @@ async function sb(c: any, path: string, init: RequestInit = {}) {
 	return data;
 }
 
+
+async function resolveChatraceTier(c: any, messengerId: string, fallbackTierCode = "RETAIL") {
+	const accessToken = String(c.env.CHATRACE_ACCESS_TOKEN || "");
+	if (!accessToken || !messengerId) return fallbackTierCode;
+	const response = await fetch(`https://api.chatrace.com/contacts/${encodeURIComponent(messengerId)}/tags`, {
+		headers: { "X-ACCESS-TOKEN": accessToken, Accept: "application/json" },
+	});
+	if (!response.ok) throw new Error(`Unable to verify ChatRace contact tags (HTTP ${response.status}).`);
+	const data: any = await response.json();
+	const tags = Array.isArray(data) ? data : Array.isArray(data?.tags) ? data.tags : Array.isArray(data?.data) ? data.data : [];
+	const isVip = tags.some((tag: any) => String(tag?.name || "").trim().toUpperCase() === "VIP" || String(tag?.id || "") === "7195790420486477");
+	return isVip ? "RESELLER" : "RETAIL";
+}
+
+async function syncCustomerTier(c: any, messengerId: string, tierCode: string, name = "ChatRace Customer", email = "") {
+	const tiers = await sb(c, `pricing_tiers?code=eq.${encodeURIComponent(tierCode)}&active=eq.true&select=id,code&limit=1`);
+	if (!tiers?.[0]) throw new Error(`The ${tierCode} price list is not configured.`);
+	const customer = await sb(c, `customers?messenger_platform=eq.chatrace&messenger_user_id=eq.${encodeURIComponent(messengerId)}&active=eq.true&select=id&limit=1`);
+	if (customer?.[0]) {
+		await sb(c, `customers?id=eq.${encodeURIComponent(customer[0].id)}`, {
+			method: "PATCH",
+			headers: { Prefer: "return=minimal" },
+			body: JSON.stringify({ pricing_tier_id: tiers[0].id }),
+		});
+	} else {
+		await sb(c, "customers?on_conflict=messenger_platform,messenger_user_id", {
+			method: "POST",
+			headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+			body: JSON.stringify({
+				name: name || "ChatRace Customer",
+				display_name: name || "ChatRace Customer",
+				email: email || null,
+				messenger_platform: "chatrace",
+				messenger_user_id: messengerId,
+				pricing_tier_id: tiers[0].id,
+				status: "active",
+				active: true,
+			}),
+		});
+	}
+	return tiers[0];
+}
+
 function unauthorized(c: any) {
 	return c.json({ error: { message: "Unauthorized" } }, 401);
 }
@@ -51,19 +94,24 @@ function unauthorized(c: any) {
 chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 	if (!chatraceAuthorized(c)) return unauthorized(c);
 	try {
-		const messengerId = String(c.req.query("messenger_user_id") || "").trim();
+		// ChatRace exposes {{user_id}}. Accept it as an alias while keeping
+		// messenger_user_id compatible with existing flows.
+		const messengerId = String(
+			c.req.query("messenger_user_id") || c.req.query("user_id") || "",
+		).trim();
+		const rawProduct = String(c.req.query("product") || "").trim();
+		// Avoid letting a user-controlled search string alter PostgREST filters.
+		const productQuery = rawProduct.replace(/[^a-zA-Z0-9 _-]/g, "").trim();
 		let tierCode = "RETAIL";
 		if (messengerId) {
-			const customers = await sb(
-				c,
-				`customers?messenger_platform=eq.chatrace&messenger_user_id=eq.${encodeURIComponent(messengerId)}&active=eq.true&select=pricing_tier_id&limit=1`,
-			);
+			const customers = await sb(c, `customers?messenger_platform=eq.chatrace&messenger_user_id=eq.${encodeURIComponent(messengerId)}&active=eq.true&select=pricing_tier_id&limit=1`);
 			if (customers?.[0]?.pricing_tier_id) {
-				const tiers = await sb(
-					c,
-					`pricing_tiers?id=eq.${encodeURIComponent(customers[0].pricing_tier_id)}&select=code&active=eq.true&limit=1`,
-				);
-				if (tiers?.[0]?.code) tierCode = tiers[0].code;
+				const saved = await sb(c, `pricing_tiers?id=eq.${encodeURIComponent(customers[0].pricing_tier_id)}&select=code&active=eq.true&limit=1`);
+				if (saved?.[0]?.code) tierCode = saved[0].code;
+			}
+			if (c.env.CHATRACE_ACCESS_TOKEN) {
+				tierCode = await resolveChatraceTier(c, messengerId, tierCode);
+				await syncCustomerTier(c, messengerId, tierCode);
 			}
 		}
 		const tiers = await sb(
@@ -71,18 +119,39 @@ chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 			`pricing_tiers?code=eq.${encodeURIComponent(tierCode)}&active=eq.true&select=id,code,name&limit=1`,
 		);
 		if (!tiers?.[0]) throw new Error("Customer price list is not configured.");
-		const prices = await sb(
-			c,
-			`product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_id,product_mode_id,term_months,price&order=term_months.asc`,
-		);
+
 		const products = await sb(
 			c,
-			"products?status=eq.ACTIVE&select=id,code,name,description&order=name.asc",
+			productQuery
+				? `products?status=eq.ACTIVE&or=(code.ilike.${encodeURIComponent(productQuery)},name.ilike.*${encodeURIComponent(productQuery)}*)&select=id,code,name,description&order=name.asc`
+				: "products?status=eq.ACTIVE&select=id,code,name,description&order=name.asc",
 		);
+		if (productQuery && !products?.length) {
+			return c.json({
+				success: true,
+				pricing_tier: tierCode,
+				query: productQuery,
+				items: [],
+				message: "No matching active product was found.",
+			});
+		}
+		const productIds = (products || []).map((p: any) => p.id);
 		const modes = await sb(
 			c,
-			"product_modes?active=eq.true&select=id,product_id,mode,display_name&order=mode.asc",
+			productQuery
+				? `product_modes?active=eq.true&product_id=in.(${productIds.map(encodeURIComponent).join(",")})&select=id,product_id,mode,display_name&order=mode.asc`
+				: "product_modes?active=eq.true&select=id,product_id,mode,display_name&order=mode.asc",
 		);
+		const modeIds = (modes || []).map((m: any) => m.id);
+		const prices =
+			productQuery && !modeIds.length
+				? []
+				: await sb(
+						c,
+						modeIds.length
+							? `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&product_mode_id=in.(${modeIds.map(encodeURIComponent).join(",")})&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`
+							: `product_term_prices?pricing_tier_id=eq.${encodeURIComponent(tiers[0].id)}&active=eq.true&effective_from=lte.${encodeURIComponent(new Date().toISOString())}&select=product_mode_id,term_months,price&order=term_months.asc`,
+					);
 		const modeMap = new Map((modes || []).map((m: any) => [m.id, m]));
 		const productMap = new Map((products || []).map((p: any) => [p.id, p]));
 		const catalog = (prices || [])
@@ -101,12 +170,16 @@ chatraceRoutes.get("/api/chatrace/catalog", async (c) => {
 				};
 			})
 			.filter(Boolean);
-		return c.json({ success: true, pricing_tier: tierCode, items: catalog });
+		return c.json({
+			success: true,
+			pricing_tier: tierCode,
+			...(productQuery ? { query: productQuery } : {}),
+			items: catalog,
+		});
 	} catch (e) {
 		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
 	}
 });
-
 chatraceRoutes.post("/api/chatrace/quote", async (c) => {
 	if (!chatraceAuthorized(c)) return unauthorized(c);
 	try {
@@ -137,16 +210,15 @@ chatraceRoutes.post("/api/chatrace/quote", async (c) => {
 				400,
 			);
 		}
-		const customers = await sb(
-			c,
-			`customers?messenger_platform=eq.chatrace&messenger_user_id=eq.${encodeURIComponent(messengerId)}&active=eq.true&select=pricing_tier_id&limit=1`,
-		);
-		let tierId = customers?.[0]?.pricing_tier_id;
-		if (!tierId) {
-			const retail = await sb(c, "pricing_tiers?code=eq.RETAIL&active=eq.true&select=id&limit=1");
-			tierId = retail?.[0]?.id;
+		const customers = await sb(c, `customers?messenger_platform=eq.chatrace&messenger_user_id=eq.${encodeURIComponent(messengerId)}&active=eq.true&select=pricing_tier_id&limit=1`);
+		let tierCode = "RETAIL";
+		if (customers?.[0]?.pricing_tier_id) {
+			const saved = await sb(c, `pricing_tiers?id=eq.${encodeURIComponent(customers[0].pricing_tier_id)}&select=code&active=eq.true&limit=1`);
+			if (saved?.[0]?.code) tierCode = saved[0].code;
 		}
-		if (!tierId) throw new Error("Retail price list is not configured.");
+		if (c.env.CHATRACE_ACCESS_TOKEN) tierCode = await resolveChatraceTier(c, messengerId, tierCode);
+		const syncedTier = await syncCustomerTier(c, messengerId, tierCode);
+		const tierId = syncedTier.id;
 		const products = await sb(
 			c,
 			`products?code=eq.${encodeURIComponent(productCode)}&status=eq.ACTIVE&select=id,name,code&limit=1`,
@@ -223,6 +295,14 @@ chatraceRoutes.post("/api/chatrace/orders", async (c) => {
 				400,
 			);
 		}
+		let tierCode = "RETAIL";
+		const existingCustomer = await sb(c, `customers?messenger_platform=eq.chatrace&messenger_user_id=eq.${encodeURIComponent(messengerId)}&active=eq.true&select=pricing_tier_id&limit=1`);
+		if (existingCustomer?.[0]?.pricing_tier_id) {
+			const saved = await sb(c, `pricing_tiers?id=eq.${encodeURIComponent(existingCustomer[0].pricing_tier_id)}&select=code&active=eq.true&limit=1`);
+			if (saved?.[0]?.code) tierCode = saved[0].code;
+		}
+		if (c.env.CHATRACE_ACCESS_TOKEN) tierCode = await resolveChatraceTier(c, messengerId, tierCode);
+		await syncCustomerTier(c, messengerId, tierCode, name, String(body?.email || ""));
 		const rows = await sb(c, "rpc/create_chatrace_pending_order", {
 			method: "POST",
 			body: JSON.stringify({
