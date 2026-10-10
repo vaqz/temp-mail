@@ -15,7 +15,7 @@ export const PRODUCT_MANAGEMENT_PAGE = `<!doctype html>
 <section class="card">
  <div class="header">
   <div class="brand"><div class="mark">VM</div><div><h1 style="margin:0;font-size:24px">Product Management</h1><div class="muted">Vaqz Mobiz catalog, selling modes, pricing and customer-facing fields</div></div></div>
-  <div class="actions"><a class="btn secondary" href="/admin" style="text-decoration:none">← Mail Admin</a><button id="newProduct" class="btn">+ Add Product</button></div>
+  <div class="actions"><a class="btn secondary" href="/admin" style="text-decoration:none">← Mail Admin</a><a class="btn secondary" href="/admin/pricing" style="text-decoration:none">Manage Pricing</a><button id="newProduct" class="btn">+ Add Product</button></div>
  </div>
  <div id="notice" class="notice" style="display:none"></div>
 </section>
