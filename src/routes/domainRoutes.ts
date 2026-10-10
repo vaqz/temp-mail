@@ -51,7 +51,7 @@ domainRoutes.get("/admin/api/domains", async (c) => {
 			grouped.set(String(row.domain), list);
 		}
 		return c.json(
-			(domains.results as Array<any>).map((row) => ({
+			(domains.results as any[]).map((row) => ({
 				...row,
 				is_active: Boolean(row.is_active),
 				destinations: grouped.get(String(row.domain)) || [],
