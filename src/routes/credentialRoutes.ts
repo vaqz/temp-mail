@@ -106,7 +106,12 @@ credentialRoutes.get("/admin/api/credentials", async (c) => {
 		return c.json({ error: { message: e instanceof Error ? e.message : String(e) } }, 500);
 	}
 });
-async function recordCredentialEvent(c: any, credentialId: string, eventType: string, details: Record<string, unknown> = {}) {
+async function recordCredentialEvent(
+	c: any,
+	credentialId: string,
+	eventType: string,
+	details: Record<string, unknown> = {},
+) {
 	await sb(c, "credential_events", {
 		method: "POST",
 		body: JSON.stringify({ credential_id: credentialId, event_type: eventType, details }),
@@ -119,7 +124,9 @@ credentialRoutes.get("/admin/api/credentials/:credentialId/history", async (c) =
 		const credentialId = c.req.param("credentialId");
 		const events = await sb(
 			c,
-			"credential_events?credential_id=eq." + encodeURIComponent(credentialId) + "&select=id,event_type,details,created_at&order=created_at.desc",
+			"credential_events?credential_id=eq." +
+				encodeURIComponent(credentialId) +
+				"&select=id,event_type,details,created_at&order=created_at.desc",
 		);
 		return c.json({ items: events || [] });
 	} catch (e) {
