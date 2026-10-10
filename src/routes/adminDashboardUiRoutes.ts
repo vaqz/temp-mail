@@ -1,4 +1,3 @@
-// biome-ignore-all format: Preserve route formatting while integrating the ChatRace workflow.
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { ADMIN_DASHBOARD_CSS } from "@/admin/dashboard/dashboardCss";
 import { ADMIN_DASHBOARD_JS } from "@/admin/dashboard/dashboardJs";
