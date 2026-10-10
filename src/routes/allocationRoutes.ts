@@ -123,10 +123,20 @@ allocationRoutes.get("/admin/api/allocation/history", async (c) => {
 		const customerIds = [...new Set((rows || []).map((x: any) => x.customer_id).filter(Boolean))];
 		const modeIds = [...new Set((rows || []).map((x: any) => x.product_mode_id).filter(Boolean))];
 		const customers = customerIds.length
-			? await sb(c, "customers?id=in.(" + customerIds.map(encodeURIComponent).join(",") + ")&select=id,name,display_name,email")
+			? await sb(
+					c,
+					"customers?id=in.(" +
+						customerIds.map(encodeURIComponent).join(",") +
+						")&select=id,name,display_name,email",
+				)
 			: [];
 		const modes = modeIds.length
-			? await sb(c, "product_modes?id=in.(" + modeIds.map(encodeURIComponent).join(",") + ")&select=id,product_id,mode,display_name")
+			? await sb(
+					c,
+					"product_modes?id=in.(" +
+						modeIds.map(encodeURIComponent).join(",") +
+						")&select=id,product_id,mode,display_name",
+				)
 			: [];
 		const productIds = [...new Set((modes || []).map((x: any) => x.product_id).filter(Boolean))];
 		const products = productIds.length
