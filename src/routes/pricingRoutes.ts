@@ -132,10 +132,7 @@ pricingRoutes.post("/admin/api/pricing", async (c) => {
 			);
 		}
 		if (new Set(normalized.map((item: any) => item.term_months)).size !== normalized.length) {
-			return c.json(
-				{ error: { message: "Each subscription term can appear only once." } },
-				400,
-			);
+			return c.json({ error: { message: "Each subscription term can appear only once." } }, 400);
 		}
 
 		const existingPrices = await sb(
