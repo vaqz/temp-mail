@@ -88,6 +88,7 @@ async function supabaseDashboard(c: any, path: string) {
 	return data;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This endpoint intentionally aggregates several independent dashboard KPI sources.
 adminDashboardUiRoutes.get("/admin/api/dashboard/kpis", async (c) => {
 	if (!authorized(c)) return unauthorized(c);
 	try {
