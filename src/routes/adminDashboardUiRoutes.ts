@@ -58,7 +58,6 @@ adminDashboardUiRoutes.get("/admin/assets/dashboard.js", (c) => {
 });
 
 
-
 async function supabaseDashboard(c: any, path: string) {
 	const url = String(c.env.SUPABASE_URL || "").replace(/\/$/, "");
 	const key = String(c.env.SUPABASE_SERVICE_ROLE_KEY || "");
@@ -72,8 +71,21 @@ async function supabaseDashboard(c: any, path: string) {
 	});
 	const text = await response.text();
 	let data: any = null;
-	try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-	if (!response.ok) throw new Error(data?.message || data?.hint || data?.details || data?.error || text || `Supabase request failed (${response.status})`);
+	try {
+		data = text ? JSON.parse(text) : null;
+	} catch {
+		data = text;
+	}
+	if (!response.ok) {
+		throw new Error(
+			data?.message ||
+				data?.hint ||
+				data?.details ||
+				data?.error ||
+				text ||
+				`Supabase request failed (${response.status})`,
+		);
+	}
 	return data;
 }
 
