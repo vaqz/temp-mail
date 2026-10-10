@@ -12,7 +12,7 @@
     "db:indexes": "wrangler d1 execute temp-mail-d1 --file ./sql/indexes.sql --remote",
     "r2:create": "wrangler r2 bucket create temp-mail-attachments",
     "r2:create-preview": "wrangler r2 bucket create temp-mail-attachments-preview",
-    "lint": "biome lint ./src",
+    "lint": "biome lint --max-diagnostics=500 ./src",
     "lint:fix": "biome lint --write --unsafe ./src",
     "format": "biome format --write ./src",
     "format:check": "biome format ./src",
