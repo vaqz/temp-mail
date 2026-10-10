@@ -1,3 +1,4 @@
+// biome-ignore-all format: Preserve route formatting while integrating the ChatRace workflow.
 import { isAdminAuthorized } from "@/utils/adminAuth";
 import { writeAdminAudit } from "@/utils/adminAudit";
 import { OpenAPIHono } from "@hono/zod-openapi";
