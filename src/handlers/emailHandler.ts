@@ -275,10 +275,10 @@ async function processHouseholdUpdateEmailOnce(
 	}
 
 	try {
-		await processHouseholdUpdateEmail(env, html, text, emailId);
+		const succeeded = await processHouseholdUpdateEmail(env, html, text, emailId);
 		await env.D1.prepare(
-			"UPDATE household_update_jobs SET status = 'submitted', updated_at = ? WHERE fingerprint = ?",
-		).bind(now(), fingerprint).run();
+			"UPDATE household_update_jobs SET status = ?, updated_at = ? WHERE fingerprint = ?",
+		).bind(succeeded ? "submitted" : "failed", now(), fingerprint).run();
 	} catch (error) {
 		await env.D1.prepare(
 			"UPDATE household_update_jobs SET status = 'failed', updated_at = ? WHERE fingerprint = ?",
@@ -292,11 +292,11 @@ async function processHouseholdUpdateEmail(
 	html: string,
 	text: string,
 	emailId: string,
-): Promise<void> {
+): Promise<boolean> {
 	const apiKey = env.BROWSERLESS_API_KEY;
 	if (!apiKey) {
 		console.error("Household Update automation skipped: BROWSERLESS_API_KEY secret is not configured.");
-		return;
+		return false;
 	}
 
 	const rawMatch =
@@ -305,7 +305,7 @@ async function processHouseholdUpdateEmail(
 	const targetUrl = rawMatch?.[0]?.replace(/&amp;/gi, "&");
 	if (!targetUrl) {
 		console.warn(`Household Update email ${emailId} did not contain the expected URL.`);
-		return;
+		return false;
 	}
 
 	try {
@@ -316,11 +316,11 @@ async function processHouseholdUpdateEmail(
 			parsed.pathname !== "/account/update-primary-location"
 		) {
 			console.warn(`Household Update email ${emailId} had an unexpected URL; action skipped.`);
-			return;
+			return false;
 		}
 	} catch {
 		console.warn(`Household Update email ${emailId} had an invalid URL; action skipped.`);
-		return;
+		return false;
 	}
 
 	const code = `
@@ -347,10 +347,12 @@ async function processHouseholdUpdateEmail(
 		const responseText = await response.text();
 		if (!response.ok) {
 			console.error(`Browserless household update failed for email ${emailId}: HTTP ${response.status}: ${responseText.slice(0, 500)}`);
-			return;
+			return false;
 		}
 		console.log(`Browserless household update request completed for email ${emailId}.`);
+		return true;
 	} catch (error) {
 		console.error(`Browserless household update error for email ${emailId}:`, error);
+		return false;
 	}
 }
