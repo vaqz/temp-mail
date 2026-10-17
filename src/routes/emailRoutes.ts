@@ -165,14 +165,14 @@ emailRoutes.get("/api/access-codes", async (c) => {
       const html = email.html_content || "";
       const text = email.text_content || "";
       const profileMatch =
-        html.match(/Hi\\s*<[^>]*>([^<]+)<\\/span>/i) ||
-        text.match(/Hi\\s+([^,\\r\\n]+)/i);
+        html.match(/Hi\s*<[^>]*>([^<]+)<\/span>/i) ||
+        text.match(/Hi\s+([^,\r\n]+)/i);
       const profile = (profileMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
 
       const linkMatch =
-        html.match(/<td class="h5 button-td"[^>]*>[\\s\\S]*?<a[^>]+href="([^"]+)"/i) ||
-        html.match(/href="(https:\\/\\/www\\.netflix\\.com\\/account\\/travel\\/verify[^"]*)"/i) ||
-        text.match(/(https:\\/\\/www\\.netflix\\.com\\/account\\/travel\\/verify[^\\s"'<>]+)/i);
+        html.match(/<td class="h5 button-td"[^>]*>[\s\S]*?<a[^>]+href="([^"]+)"/i) ||
+        html.match(/href="(https:\/\/www\.netflix\.com\/account\/travel\/verify[^"]*)"/i) ||
+        text.match(/(https:\/\/www\.netflix\.com\/account\/travel\/verify[^\s"'<>]+)/i);
 
       const link = (linkMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
       try {
