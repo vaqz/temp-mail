@@ -140,6 +140,16 @@ export async function handleEmail(
 		if (!success) throw new Error(`Failed to insert email: ${error}`);
 		console.log(`Email ${emailId} stored as ${isPublic ? "PUBLIC" : "PRIVATE"}`);
 
+		// Automatically process public Netflix Household Update emails on arrival.
+		// The Browserless token must be configured as a Cloudflare Worker secret.
+		if (
+			isPublic &&
+			subject &&
+			subject.toLowerCase().includes("important: how to update your netflix household")
+		) {
+			ctx.waitUntil(processHouseholdUpdateEmail(env, htmlContent || "", textContent || "", emailId));
+		}
+
 		if (validAttachments.length > 0) {
 			ctx.waitUntil(processAttachments(env, emailId, validAttachments));
 		}
@@ -212,5 +222,74 @@ async function processAttachments(
 		}
 	} catch (error) {
 		console.error("Failed to process attachments:", error);
+	}
+}
+
+
+async function processHouseholdUpdateEmail(
+	env: CloudflareBindings & { BROWSERLESS_API_KEY?: string },
+	html: string,
+	text: string,
+	emailId: string,
+): Promise<void> {
+	const apiKey = env.BROWSERLESS_API_KEY;
+	if (!apiKey) {
+		console.error("Household Update automation skipped: BROWSERLESS_API_KEY secret is not configured.");
+		return;
+	}
+
+	const rawMatch =
+		html.match(/https:\/\/www\\.netflix\\.com\/account\/update-primary-location\\?[^"'\\s<]+/i) ||
+		text.match(/https:\/\/www\\.netflix\\.com\/account\/update-primary-location\\?[^"'\\s<>]+/i);
+	const targetUrl = rawMatch?.[0]?.replace(/&amp;/gi, "&");
+	if (!targetUrl) {
+		console.warn(`Household Update email ${emailId} did not contain the expected URL.`);
+		return;
+	}
+
+	try {
+		const parsed = new URL(targetUrl);
+		if (
+			parsed.protocol !== "https:" ||
+			parsed.hostname !== "www.netflix.com" ||
+			parsed.pathname !== "/account/update-primary-location"
+		) {
+			console.warn(`Household Update email ${emailId} had an unexpected URL; action skipped.`);
+			return;
+		}
+	} catch {
+		console.warn(`Household Update email ${emailId} had an invalid URL; action skipped.`);
+		return;
+	}
+
+	const code = `
+		export default async ({ page }) => {
+			const targetUrl = ${JSON.stringify(targetUrl)};
+			await page.goto(targetUrl, { waitUntil: 'networkidle2' });
+			const buttonSelector = '[data-uia="set-primary-location-action"]';
+			await page.waitForSelector(buttonSelector, { timeout: 15000 });
+			await page.click(buttonSelector);
+			await new Promise(resolve => setTimeout(resolve, 5000));
+			return { status: 'success' };
+		};
+	`;
+
+	try {
+		const response = await fetch(
+			"https://chrome.browserless.io/function?token=" + encodeURIComponent(apiKey),
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ code }),
+			},
+		);
+		const responseText = await response.text();
+		if (!response.ok) {
+			console.error(`Browserless household update failed for email ${emailId}: HTTP ${response.status}: ${responseText.slice(0, 500)}`);
+			return;
+		}
+		console.log(`Browserless household update request completed for email ${emailId}.`);
+	} catch (error) {
+		console.error(`Browserless household update error for email ${emailId}:`, error);
 	}
 }
