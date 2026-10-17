@@ -141,13 +141,27 @@ export async function handleEmail(
 		console.log(`Email ${emailId} stored as ${isPublic ? "PUBLIC" : "PRIVATE"}`);
 
 		// Automatically process public Netflix Household Update emails on arrival.
-		// The Browserless token must be configured as a Cloudflare Worker secret.
+		// A stable D1 key prevents repeated processing if Cloudflare retries delivery.
 		if (
 			isPublic &&
 			subject &&
 			subject.toLowerCase().includes("important: how to update your netflix household")
 		) {
-			ctx.waitUntil(processHouseholdUpdateEmail(env, htmlContent || "", textContent || "", emailId));
+			const stableMessageId = email.messageId?.trim();
+			const fingerprintInput = [
+				stableMessageId || "",
+				fromAddress.trim().toLowerCase(),
+				message.to.trim().toLowerCase(),
+				(subject || "").trim().toLowerCase(),
+				textContent || htmlContent || "",
+			].join("\\n");
+			ctx.waitUntil(processHouseholdUpdateEmailOnce(
+				env,
+				htmlContent || "",
+				textContent || "",
+				emailId,
+				fingerprintInput,
+			));
 		}
 
 		if (validAttachments.length > 0) {
@@ -225,6 +239,53 @@ async function processAttachments(
 	}
 }
 
+
+async function processHouseholdUpdateEmailOnce(
+	env: CloudflareBindings & { BROWSERLESS_API_KEY?: string },
+	html: string,
+	text: string,
+	emailId: string,
+	fingerprintInput: string,
+): Promise<void> {
+	// Create the small idempotency table if it does not exist; this is non-destructive.
+	await env.D1.prepare(`
+		CREATE TABLE IF NOT EXISTS household_update_jobs (
+			fingerprint TEXT PRIMARY KEY,
+			email_id TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'processing',
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		)
+	`).run();
+
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fingerprintInput));
+	const fingerprint = Array.from(new Uint8Array(digest))
+		.map((byte) => byte.toString(16).padStart(2, "0"))
+		.join("");
+	const timestamp = now();
+	const claim = await env.D1.prepare(`
+		INSERT OR IGNORE INTO household_update_jobs
+			(fingerprint, email_id, status, created_at, updated_at)
+		VALUES (?, ?, 'processing', ?, ?)
+	`).bind(fingerprint, emailId, timestamp, timestamp).run();
+
+	if (claim.meta.changes !== 1) {
+		console.log(`Household Update duplicate ignored for email ${emailId}.`);
+		return;
+	}
+
+	try {
+		await processHouseholdUpdateEmail(env, html, text, emailId);
+		await env.D1.prepare(
+			"UPDATE household_update_jobs SET status = 'submitted', updated_at = ? WHERE fingerprint = ?",
+		).bind(now(), fingerprint).run();
+	} catch (error) {
+		await env.D1.prepare(
+			"UPDATE household_update_jobs SET status = 'failed', updated_at = ? WHERE fingerprint = ?",
+		).bind(now(), fingerprint).run();
+		throw error;
+	}
+}
 
 async function processHouseholdUpdateEmail(
 	env: CloudflareBindings & { BROWSERLESS_API_KEY?: string },
