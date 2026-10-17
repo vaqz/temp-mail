@@ -146,13 +146,13 @@ emailRoutes.get("/api/access-codes", async (c) => {
       `SELECT id, subject, received_at, html_content, text_content
        FROM emails
        WHERE is_public = 1
-         AND lower(from_address) = lower(?)
-         AND lower(subject) LIKE lower(?)
+         AND lower(subject) LIKE '%netflix%'
+         AND lower(subject) LIKE '%temporary access code%'
          AND received_at >= ?
        ORDER BY received_at DESC
        LIMIT 100`,
     )
-      .bind("info@account.netflix.com", "%Your Netflix temporary access code%", cutoff)
+      .bind(cutoff)
       .all<{
         id: string;
         subject: string | null;
