@@ -239,8 +239,8 @@ async function processHouseholdUpdateEmail(
 	}
 
 	const rawMatch =
-		html.match(/https:\/\/www\\.netflix\\.com\/account\/update-primary-location\\?[^"'\\s<]+/i) ||
-		text.match(/https:\/\/www\\.netflix\\.com\/account\/update-primary-location\\?[^"'\\s<>]+/i);
+		html.match(/https:\/\/www\.netflix\.com\/account\/update-primary-location\?[^"\'\s<]+/i) ||
+		text.match(/https:\/\/www\.netflix\.com\/account\/update-primary-location\?[^"\'\s<>]+/i);
 	const targetUrl = rawMatch?.[0]?.replace(/&amp;/gi, "&");
 	if (!targetUrl) {
 		console.warn(`Household Update email ${emailId} did not contain the expected URL.`);
