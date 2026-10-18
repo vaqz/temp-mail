@@ -211,31 +211,30 @@ emailRoutes.get("/api/access-codes", async (c) => {
 // Consume a Netflix access-code email after the customer confirms and opens its link.
 // The email ID is an unguessable CUID, and deletion is limited to matching public access-code emails.
 emailRoutes.delete("/api/access-codes/:id", async (c) => {
-  const id = c.req.param("id");
-  if (!id || id.length > 64) {
-    return c.json({ error: "Invalid access-code ID." }, 400, {
-      "Cache-Control": "no-store",
-    });
-  }
+	const id = c.req.param("id");
+	if (!id || id.length > 64) {
+		return c.json({ error: "Invalid access-code ID." }, 400, {
+			"Cache-Control": "no-store",
+		});
+	}
 
-  try {
-    const result = await c.env.D1.prepare(
-      `DELETE FROM emails
-       WHERE id = ?
-         AND is_public = 1
-         AND lower(subject) LIKE '%netflix%'
-         AND lower(subject) LIKE '%temporary access code%'`,
-    ).bind(id).run();
+	try {
+		const result = await c.env.D1.prepare(
+			`DELETE FROM emails
+			 WHERE id = ?
+			   AND is_public = 1
+			   AND lower(subject) LIKE '%netflix%'
+			   AND lower(subject) LIKE '%temporary access code%'`,
+		).bind(id).run();
 
-    return c.json({ consumed: Number(result.meta.changes || 0) > 0 }, 200, {
-      "Cache-Control": "no-store, max-age=0",
-    });
-  } catch (error) {
-    console.error("Access Code consume request failed:", error);
-    return c.json({ error: "Unable to consume access code." }, 500, {
-      "Cache-Control": "no-store",
-    });
-  }
+		return c.json({ consumed: Number(result.meta.changes || 0) > 0 }, 200, {
+			"Cache-Control": "no-store, max-age=0",
+		});
+	} catch (error) {
+		console.error("Access Code consume request failed:", error);
+		return c.json({ error: "Unable to consume access code." }, 500, {
+			"Cache-Control": "no-store",
+		});
+	}
 });
-
 export default emailRoutes;
