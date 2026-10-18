@@ -302,11 +302,15 @@ chatraceRoutes.post("/admin/api/orders/:orderId/confirm-payment", async (c) => {
 
 // Retired endpoint: use the metadata-only email-classification route instead.
 chatraceRoutes.post("/api/chatrace/access-code", (c) => {
-  if (!chatraceAuthorized(c)) return unauthorized(c);
-  return c.json({
-    status: "retired",
-    message: "Use POST /api/chatrace/email-classification for message metadata."
-  }, 410, { "Cache-Control": "no-store" });
+	if (!chatraceAuthorized(c)) return unauthorized(c);
+	return c.json(
+		{
+			status: "retired",
+			message: "Use POST /api/chatrace/email-classification for message metadata.",
+		},
+		410,
+		{ "Cache-Control": "no-store" },
+	);
 });
 
 export default chatraceRoutes;
