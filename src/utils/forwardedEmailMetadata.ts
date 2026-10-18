@@ -13,10 +13,13 @@ export interface ForwardedEmailMetadata {
 }
 
 function htmlToPlainText(input: string): string {
-	return input
-		.replace(/<\s*br\s*\/?\s*>/gi, "\n")
-		.replace(/<\s*\/(?:p|div|tr|li|h[1-6])\s*>/gi, "\n")
-		.replace(/<[^>]*>/g, " ")
+	const source = /<\s*(?:html|body|p|div|br|table|tr|td|b|strong)\b/i.test(input)
+		? input
+				.replace(/<\s*br\s*\/?\s*>/gi, "\n")
+				.replace(/<\s*\/(?:p|div|tr|li|h[1-6])\s*>/gi, "\n")
+				.replace(/<[^>]*>/g, " ")
+		: input;
+	return source
 		.replace(/&nbsp;|&#160;/gi, " ")
 		.replace(/&lt;/gi, "<")
 		.replace(/&gt;/gi, ">")
