@@ -319,13 +319,13 @@ async function ensureChatRaceAccessCodeResults(db: D1Database) {
 
 function parseChatRaceAccessCodeEmail(htmlContent: string, textContent: string) {
 	const profileMatch =
-		htmlContent.match(/Hi\\s*<[^>]*>([^<]+)<\\/span>/i) ||
-		textContent.match(/Hi\\s+([^,\\r\\n]+)/i);
+		htmlContent.match(/Hi\s*<[^>]*>([^<]+)<\/span>/i) ||
+		textContent.match(/Hi\s+([^,\r\n]+)/i);
 	const profile = (profileMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
 	const linkMatch =
-		htmlContent.match(/<td class="h5 button-td"[^>]*>[\\s\\S]*?<a[^>]+href="([^"]+)"/i) ||
-		htmlContent.match(/href="(https:\\/\\/www\\.netflix\\.com\\/account\\/travel\\/verify[^"]*)"/i) ||
-		textContent.match(/(https:\\/\\/www\\.netflix\\.com\\/account\\/travel\\/verify[^\\s"'<>]+)/i);
+		htmlContent.match(/<td class="h5 button-td"[^>]*>[\s\S]*?<a[^>]+href="([^"]+)"/i) ||
+		htmlContent.match(/href="(https:\/\/www\.netflix\.com\/account\/travel\/verify[^"]*)"/i) ||
+		textContent.match(/(https:\/\/www\.netflix\.com\/account\/travel\/verify[^\s"'<>]+)/i);
 	const link = (linkMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
 	try {
 		const parsed = new URL(link);
@@ -342,7 +342,7 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 	try {
 		const body = await c.req.json().catch(() => ({}));
 		const email = String(body?.email || body?.net_acct_email || "").trim().toLowerCase();
-		if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254) {
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
 			return c.json({ status: "error", message: "A valid email address is required.", code: null }, 400,
 				{ "Cache-Control": "no-store" });
 		}
@@ -395,15 +395,15 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 				});
 				const html = await response.text();
 				const pageText = html
-					.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, " ")
-					.replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, " ")
+					.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+					.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
 					.replace(/<[^>]+>/g, " ")
 					.replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&")
 					.replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
-					.replace(/\\s+/g, " ").trim();
-				const contextualCode = pageText.match(/(?:verification\\s+)?code[^0-9]{0,80}(\\d{4})/i) ||
-					pageText.match(/(\\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
-				const allCodes = pageText.match(/\\b\\d{4}\\b/g) || [];
+					.replace(/\s+/g, " ").trim();
+				const contextualCode = pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
+					pageText.match(/(\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
+				const allCodes = pageText.match(/\b\d{4}\b/g) || [];
 				const codeMatch = contextualCode || (allCodes.length === 1 ? [allCodes[0], allCodes[0]] : null);
 				const code = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = code ? "success" : "failed";
