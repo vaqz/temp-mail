@@ -230,7 +230,7 @@ emailRoutes.get("/api/access-codes", async (c) => {
 emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 	const id = c.req.param("id");
 	if (!id || id.length > 64)
-			return c.json({ error: "Invalid access-code ID." }, 400, { "Cache-Control": "no-store" });
+		return c.json({ error: "Invalid access-code ID." }, 400, { "Cache-Control": "no-store" });
 	const now = Math.floor(Date.now() / 1000);
 	const cutoff = now - 15 * 60;
 	try {
@@ -250,11 +250,9 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 				text_content: string | null;
 			}>();
 		if (!email)
-			return c.json(
-				{ status: "not_found", message: "Code not found or expired." },
-				404,
-				{ "Cache-Control": "no-store" },
-			);
+			return c.json({ status: "not_found", message: "Code not found or expired." }, 404, {
+				"Cache-Control": "no-store",
+			});
 
 		const parsed = parseAccessCodeEmail(email.html_content || "", email.text_content || "");
 		if (!parsed)
@@ -318,15 +316,21 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 			}
 		}
 
-		return c.json({
-			status: saved?.status || "processing",
-			profile: saved?.profile || parsed.profile,
-			accessCode: saved?.status === "success" ? saved.access_code : null,
-			message: saved?.message || "Retrieval is in progress. Try again shortly.",
-		}, 200, { "Cache-Control": "no-store, max-age=0", "Pragma": "no-cache" });
+		return c.json(
+			{
+				status: saved?.status || "processing",
+				profile: saved?.profile || parsed.profile,
+				accessCode: saved?.status === "success" ? saved.access_code : null,
+				message: saved?.message || "Retrieval is in progress. Try again shortly.",
+			},
+			200,
+			{ "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" },
+		);
 	} catch (error) {
 		console.error("Access Code retrieval failed:", error);
-		return c.json({ error: "Unable to retrieve access code." }, 500, { "Cache-Control": "no-store" });
+		return c.json({ error: "Unable to retrieve access code." }, 500, {
+			"Cache-Control": "no-store",
+		});
 	}
 });
 
