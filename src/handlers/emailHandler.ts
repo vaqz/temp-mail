@@ -346,7 +346,9 @@ async function processHouseholdUpdateEmail(
 		);
 		const responseText = await response.text();
 		if (!response.ok) {
-			console.error(`Browserless household update failed for email ${emailId}: HTTP ${response.status}: ${responseText.slice(0, 500)}`);
+			console.error(
+				`Browserless household update failed for email ${emailId}: HTTP ${response.status}: ${responseText.slice(0, 500)}`,
+			);
 			return false;
 		}
 		console.log(`Browserless household update request completed for email ${emailId}.`);
