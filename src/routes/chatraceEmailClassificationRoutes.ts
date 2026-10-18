@@ -21,9 +21,14 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 		return c.json({ status: "error", message: "A valid email address is required." }, 400);
 	}
 
-	const mailbox = String(c.env.CHATRACE_FORWARDING_MAILBOX || "").trim().toLowerCase();
+	const mailbox = String(c.env.CHATRACE_FORWARDING_MAILBOX || "")
+		.trim()
+		.toLowerCase();
 	if (!mailbox) {
-		return c.json({ status: "not_configured", message: "Forwarding mailbox is not configured." }, 503);
+		return c.json(
+			{ status: "not_configured", message: "Forwarding mailbox is not configured." },
+			503,
+		);
 	}
 
 	try {
