@@ -296,8 +296,23 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 					signal: AbortSignal.timeout(12000),
 				});
 				const html = await response.text();
-				const codeMatch =
-					html.match(/class="[^"]*"[^>]*>\s*(\d{4})\s*<\/div>/i) || html.match(/>(\d{4})</);
+				// Netflix may render the code in a span, paragraph, or other element.
+				// Strip markup first, then prefer digits near code-related wording.
+				const pageText = html
+					.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+					.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+					.replace(/<[^>]+>/g, " ")
+					.replace(/&nbsp;|&#160;/gi, " ")
+					.replace(/&amp;/gi, "&")
+					.replace(/&quot;/gi, '"')
+					.replace(/&#39;|&apos;/gi, "'")
+					.replace(/\s+/g, " ")
+					.trim();
+				const contextualCode =
+					pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
+					pageText.match(/(\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
+				const allFourDigitGroups = pageText.match(/\b\d{4}\b/g) || [];
+				const codeMatch = contextualCode || (allFourDigitGroups.length === 1 ? [allFourDigitGroups[0], allFourDigitGroups[0]] : null);
 				const accessCode = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = accessCode ? "success" : "failed";
 				const message = accessCode
