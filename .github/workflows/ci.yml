@@ -28,3 +28,6 @@ jobs:
 
       - name: Run linter
         run: bun run lint
+
+      - name: Type-check TypeScript
+        run: bun run tsc
