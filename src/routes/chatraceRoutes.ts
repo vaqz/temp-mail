@@ -351,8 +351,7 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 			.trim()
 			.toLowerCase();
 		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-			return c.json({ status: "error", message: "A valid email address is required.", code: null }, 400,
-				{ "Cache-Control": "no-store" });
+			undefined
 		}
 		const now = Math.floor(Date.now() / 1000);
 		const cutoff = now - 15 * 60;
@@ -369,16 +368,31 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 				AND lower(subject) LIKE '%netflix%'
 				AND lower(subject) LIKE '%temporary access code%'
 			ORDER BY received_at DESC LIMIT 1
-		`).bind(email, cutoff).first<{
-			id: string; subject: string | null; received_at: number;
-			html_content: string | null; text_content: string | null;
-		}>();
+		`)
+			.bind(email, cutoff)
+			.first<{
+				id: string;
+				subject: string | null;
+				received_at: number;
+				html_content: string | null;
+				text_content: string | null;
+			}>();
 
-		if (!emailRow) return c.json({
-			status: "not_found", message: "No recent Netflix access-code email was found for this email address.", code: null
-		}, 404, { "Cache-Control": "no-store" });
+		if (!emailRow)
+			return c.json(
+				{
+					status: "not_found",
+					message: "No recent Netflix access-code email was found for this email address.",
+					code: null,
+				},
+				404,
+				{ "Cache-Control": "no-store" },
+			);
 
-		const parsed = parseChatRaceAccessCodeEmail(emailRow.html_content || "", emailRow.text_content || "");
+		const parsed = parseChatRaceAccessCodeEmail(
+			emailRow.html_content || "",
+			emailRow.text_content || "",
+		);
 		if (!parsed) return c.json({
 			status: "error", message: "The Netflix verification link could not be extracted from the email.", code: null
 		}, 422, { "Cache-Control": "no-store" });
@@ -411,15 +425,17 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 					.replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&")
 					.replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
 					.replace(/\s+/g, " ").trim();
-				const contextualCode = pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
+				const contextualCode =
+					pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
 					pageText.match(/(\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
 				const allCodes = pageText.match(/\b\d{4}\b/g) || [];
 				const codeMatch =
-					contextualCode ||
-					(allCodes.length === 1 ? [allCodes[0], allCodes[0]] : null);
+					contextualCode || (allCodes.length === 1 ? [allCodes[0], allCodes[0]] : null);
 				const code = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = code ? "success" : "failed";
-				const message = code ? "Code retrieved." : "Code not found; the link may be expired or Netflix may have changed its page.";
+				const message = code
+					? "Code retrieved."
+					: "Code not found; the link may be expired or Netflix may have changed its page.";
 				await c.env.D1.prepare(
 					"UPDATE access_code_results SET status = ?, access_code = ?, message = ?, updated_at = ? WHERE email_id = ?"
 				).bind(status, code, message, Math.floor(Date.now() / 1000), emailRow.id).run();
