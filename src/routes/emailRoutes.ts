@@ -155,13 +155,13 @@ const ensureAccessCodeResults = async (db: D1Database) => {
 
 const parseAccessCodeEmail = (htmlContent: string, textContent: string) => {
   const profileMatch =
-    htmlContent.match(/Hi\\s*<[^>]*>([^<]+)<\\/span>/i) ||
-    textContent.match(/Hi\\s+([^,\\r\\n]+)/i);
+    htmlContent.match(/Hi\s*<[^>]*>([^<]+)<\/span>/i) ||
+    textContent.match(/Hi\s+([^,\r\n]+)/i);
   const profile = (profileMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
   const linkMatch =
-    htmlContent.match(/<td class="h5 button-td"[^>]*>[\\s\\S]*?<a[^>]+href="([^"]+)"/i) ||
-    htmlContent.match(/href="(https:\\/\\/www\\.netflix\\.com\\/account\\/travel\\/verify[^"]*)"/i) ||
-    textContent.match(/(https:\\/\\/www\\.netflix\\.com\\/account\\/travel\\/verify[^\\s"'<>]+)/i);
+    htmlContent.match(/<td class="h5 button-td"[^>]*>[\s\S]*?<a[^>]+href="([^"]+)"/i) ||
+    htmlContent.match(/href="(https:\/\/www\.netflix\.com\/account\/travel\/verify[^"]*)"/i) ||
+    textContent.match(/(https:\/\/www\.netflix\.com\/account\/travel\/verify[^\s"'<>]+)/i);
   const link = (linkMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
   try {
     const parsed = new URL(link);
@@ -255,7 +255,7 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
           signal: AbortSignal.timeout(12000),
         });
         const html = await response.text();
-        const codeMatch = html.match(/class="[^"]*"[^>]*>\\s*(\\d{4})\\s*<\\/div>/i) || html.match(/>(\\d{4})</);
+        const codeMatch = html.match(/class="[^"]*"[^>]*>\s*(\d{4})\s*<\/div>/i) || html.match(/>(\d{4})</);
         const accessCode = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
         const status = accessCode ? "success" : "failed";
         const message = accessCode ? "Code retrieved." : "Code not found; the link may be expired or Netflix may have changed its page.";
