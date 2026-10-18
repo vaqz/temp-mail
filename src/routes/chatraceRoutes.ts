@@ -435,9 +435,12 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 					.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
 					.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
 					.replace(/<[^>]+>/g, " ")
-					.replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&")
-					.replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
-					.replace(/\s+/g, " ").trim();
+					.replace(/&nbsp;|&#160;/gi, " ")
+					.replace(/&amp;/gi, "&")
+					.replace(/&quot;/gi, '"\')
+					.replace(/&#39;|&apos;/gi, "'")
+					.replace(/\s+/g, " ")
+					.trim();
 				const contextualCode =
 					pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
 					pageText.match(/(\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
