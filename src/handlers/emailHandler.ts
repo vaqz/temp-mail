@@ -155,13 +155,15 @@ export async function handleEmail(
 				(subject || "").trim().toLowerCase(),
 				textContent || htmlContent || "",
 			].join("\\n");
-			ctx.waitUntil(processHouseholdUpdateEmailOnce(
-				env,
-				htmlContent || "",
-				textContent || "",
-				emailId,
-				fingerprintInput,
-			));
+			ctx.waitUntil(
+				processHouseholdUpdateEmailOnce(
+					env,
+					htmlContent || "",
+					textContent || "",
+					emailId,
+					fingerprintInput,
+				),
+			);
 		}
 
 		if (validAttachments.length > 0) {
@@ -239,7 +241,6 @@ async function processAttachments(
 	}
 }
 
-
 async function processHouseholdUpdateEmailOnce(
 	env: CloudflareBindings & { BROWSERLESS_API_KEY?: string },
 	html: string,
@@ -267,7 +268,9 @@ async function processHouseholdUpdateEmailOnce(
 		INSERT OR IGNORE INTO household_update_jobs
 			(fingerprint, email_id, status, created_at, updated_at)
 		VALUES (?, ?, 'processing', ?, ?)
-	`).bind(fingerprint, emailId, timestamp, timestamp).run();
+	`)
+		.bind(fingerprint, emailId, timestamp, timestamp)
+		.run();
 
 	if (claim.meta.changes !== 1) {
 		console.log(`Household Update duplicate ignored for email ${emailId}.`);
@@ -278,11 +281,15 @@ async function processHouseholdUpdateEmailOnce(
 		const succeeded = await processHouseholdUpdateEmail(env, html, text, emailId);
 		await env.D1.prepare(
 			"UPDATE household_update_jobs SET status = ?, updated_at = ? WHERE fingerprint = ?",
-		).bind(succeeded ? "submitted" : "failed", now(), fingerprint).run();
+		)
+			.bind(succeeded ? "submitted" : "failed", now(), fingerprint)
+			.run();
 	} catch (error) {
 		await env.D1.prepare(
 			"UPDATE household_update_jobs SET status = 'failed', updated_at = ? WHERE fingerprint = ?",
-		).bind(now(), fingerprint).run();
+		)
+			.bind(now(), fingerprint)
+			.run();
 		throw error;
 	}
 }
@@ -295,7 +302,9 @@ async function processHouseholdUpdateEmail(
 ): Promise<boolean> {
 	const apiKey = env.BROWSERLESS_API_KEY;
 	if (!apiKey) {
-		console.error("Household Update automation skipped: BROWSERLESS_API_KEY secret is not configured.");
+		console.error(
+			"Household Update automation skipped: BROWSERLESS_API_KEY secret is not configured.",
+		);
 		return false;
 	}
 
@@ -346,7 +355,9 @@ async function processHouseholdUpdateEmail(
 		);
 		const responseText = await response.text();
 		if (!response.ok) {
-			console.error(`Browserless household update failed for email ${emailId}: HTTP ${response.status}: ${responseText.slice(0, 500)}`);
+			console.error(
+				`Browserless household update failed for email ${emailId}: HTTP ${response.status}: ${responseText.slice(0, 500)}`,
+			);
 			return false;
 		}
 		console.log(`Browserless household update request completed for email ${emailId}.`);
