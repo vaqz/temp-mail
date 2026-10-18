@@ -165,8 +165,14 @@ const parseAccessCodeEmail = (htmlContent: string, textContent: string) => {
 	const link = (linkMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
 	try {
 		const parsed = new URL(link);
-		if (parsed.protocol !== "https:" || parsed.hostname !== "www.netflix.com" ||
-				parsed.pathname !== "/account/travel/verify" || !profile) return null;
+		if (
+			parsed.protocol !== "https:" ||
+			parsed.hostname !== "www.netflix.com" ||
+			parsed.pathname !== "/account/travel/verify" ||
+			!profile
+		) {
+			return null;
+		}
 	} catch {
 		return null;
 	}
@@ -291,8 +297,7 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 				});
 				const html = await response.text();
 				const codeMatch =
-			html.match(/class="[^"]*"[^>]*>\s*(\d{4})\s*<\/div>/i) ||
-					html.match(/>(\d{4})</);
+				html.match(/class="[^"]*"[^>]*>\s*(\d{4})\s*<\/div>/i) || html.match(/>(\d{4})</);
 				const accessCode = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = accessCode ? "success" : "failed";
 				const message = accessCode
