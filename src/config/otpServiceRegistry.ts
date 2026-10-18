@@ -7,13 +7,7 @@
  * Add service patterns only after confirming real sender/subject examples.
  */
 
-export type OtpServiceId =
-	| "netflix"
-	| "spotify"
-	| "canva"
-	| "hbo_max"
-	| "disney_plus"
-	| "loklok";
+export type OtpServiceId = "netflix" | "spotify" | "canva" | "hbo_max" | "disney_plus" | "loklok";
 
 export type OtpMessageType = "temporary_access" | "sign_in" | "verification" | "unknown";
 
@@ -99,7 +93,8 @@ export function classifyOtpMessage(metadata: OtpMessageMetadata): OtpClassificat
 
 	for (const rule of OTP_SERVICE_REGISTRY) {
 		const senderMatches =
-			rule.senderPatterns.length > 0 && rule.senderPatterns.some((pattern) => pattern.test(fromAddress));
+			rule.senderPatterns.length > 0 &&
+			rule.senderPatterns.some((pattern) => pattern.test(fromAddress));
 		if (!senderMatches) continue;
 
 		for (const [type, patterns] of Object.entries(rule.subjectPatterns) as [
