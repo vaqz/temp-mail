@@ -36,10 +36,10 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 		const rows = await c.env.D1.prepare(
 			`SELECT id, from_address, to_address, subject, received_at, text_content
 			 FROM emails
-			 WHERE lower(to_address) = ? AND is_public = 1 AND received_at >= ?
+			 WHERE lower(to_address) IN (?, ?) AND received_at >= ?
 			 ORDER BY received_at DESC LIMIT 100`,
 		)
-			.bind(mailbox, cutoff)
+			.bind(mailbox, email, cutoff)
 			.all<{
 				id: string;
 				from_address: string | null;
