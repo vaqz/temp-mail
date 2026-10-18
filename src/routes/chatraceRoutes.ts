@@ -304,7 +304,8 @@ chatraceRoutes.post("/admin/api/orders/:orderId/confirm-payment", async (c) => {
 // ChatRace access-code endpoint. Uses the same D1 mailbox and one-time-link
 // cache as the Access Code PWA; never returns the Netflix verification URL.
 async function ensureChatRaceAccessCodeResults(db: D1Database) {
-	await db.prepare(`
+	await db
+		.prepare(`
 		CREATE TABLE IF NOT EXISTS access_code_results (
 			email_id TEXT PRIMARY KEY,
 			profile TEXT NOT NULL,
@@ -314,13 +315,13 @@ async function ensureChatRaceAccessCodeResults(db: D1Database) {
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		)
-	`).run();
+		`)
+		.run();
 }
 
 function parseChatRaceAccessCodeEmail(htmlContent: string, textContent: string) {
 	const profileMatch =
-		htmlContent.match(/Hi\s*<[^>]*>([^<]+)<\/span>/i) ||
-		textContent.match(/Hi\s+([^,\r\n]+)/i);
+		htmlContent.match(/Hi\s*<[^>]*>([^<]+)<\/span>/i) || textContent.match(/Hi\s+([^,\r\n]+)/i);
 	const profile = (profileMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
 	const linkMatch =
 		htmlContent.match(/<td class="h5 button-td"[^>]*>[\s\S]*?<a[^>]+href="([^"]+)"/i) ||
@@ -329,8 +330,13 @@ function parseChatRaceAccessCodeEmail(htmlContent: string, textContent: string) 
 	const link = (linkMatch?.[1] || "").replace(/&amp;/gi, "&").trim();
 	try {
 		const parsed = new URL(link);
-		if (parsed.protocol !== "https:" || parsed.hostname !== "www.netflix.com" ||
-			parsed.pathname !== "/account/travel/verify" || !profile) return null;
+		if (
+			parsed.protocol !== "https:" ||
+			parsed.hostname !== "www.netflix.com" ||
+			parsed.pathname !== "/account/travel/verify" ||
+			!profile
+		)
+			return null;
 	} catch {
 		return null;
 	}
@@ -341,7 +347,9 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 	if (!chatraceAuthorized(c)) return unauthorized(c);
 	try {
 		const body = await c.req.json().catch(() => ({}));
-		const email = String(body?.email || body?.net_acct_email || "").trim().toLowerCase();
+		const email = String(body?.email || body?.net_acct_email || "")
+			.trim()
+			.toLowerCase();
 		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
 			return c.json({ status: "error", message: "A valid email address is required.", code: null }, 400,
 				{ "Cache-Control": "no-store" });
@@ -351,7 +359,8 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 		const cleanupCutoff = now - 3 * 60 * 60;
 		await ensureChatRaceAccessCodeResults(c.env.D1);
 		await c.env.D1.prepare("DELETE FROM access_code_results WHERE updated_at < ?")
-			.bind(cleanupCutoff).run();
+			.bind(cleanupCutoff)
+			.run();
 
 		const emailRow = await c.env.D1.prepare(`
 			SELECT id, subject, received_at, html_content, text_content
@@ -389,7 +398,8 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 		if (claim.meta.changes > 0) {
 			try {
 				const response = await fetch(parsed.link, {
-					method: "GET", redirect: "follow",
+					method: "GET",
+					redirect: "follow",
 					headers: { "User-Agent": "Mozilla/5.0 (compatible; VaqzMobizAccessCode/1.0)" },
 					signal: AbortSignal.timeout(12000),
 				});
@@ -404,7 +414,9 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 				const contextualCode = pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
 					pageText.match(/(\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
 				const allCodes = pageText.match(/\b\d{4}\b/g) || [];
-				const codeMatch = contextualCode || (allCodes.length === 1 ? [allCodes[0], allCodes[0]] : null);
+				const codeMatch =
+					contextualCode ||
+					(allCodes.length === 1 ? [allCodes[0], allCodes[0]] : null);
 				const code = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = code ? "success" : "failed";
 				const message = code ? "Code retrieved." : "Code not found; the link may be expired or Netflix may have changed its page.";
