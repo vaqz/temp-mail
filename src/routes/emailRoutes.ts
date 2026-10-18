@@ -301,8 +301,8 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 				const accessCode = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = accessCode ? "success" : "failed";
 				const message = accessCode
-			? "Code retrieved."
-			: "Code not found; the link may be expired or Netflix may have changed its page.";
+					? "Code retrieved."
+					: "Code not found; the link may be expired or Netflix may have changed its page.";
 				await c.env.D1.prepare(
 					"UPDATE access_code_results SET status = ?, access_code = ?, message = ?, updated_at = ? WHERE email_id = ?",
 				)
