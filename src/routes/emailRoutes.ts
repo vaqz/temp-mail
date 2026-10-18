@@ -313,7 +313,9 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 					pageText.match(/(?:verification\s+)?code[^0-9]{0,80}(\d{4})/i) ||
 					pageText.match(/(\d{4})[^a-z0-9]{0,40}(?:is your )?(?:verification )?code/i);
 				const allFourDigitGroups = pageText.match(/\b\d{4}\b/g) || [];
-				const codeMatch = contextualCode || (allFourDigitGroups.length === 1 ? [allFourDigitGroups[0], allFourDigitGroups[0]] : null);
+				const codeMatch =
+					contextualCode ||
+					(allFourDigitGroups.length === 1 ? [allFourDigitGroups[0], allFourDigitGroups[0]] : null);
 				const accessCode = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = accessCode ? "success" : "failed";
 				const message = accessCode
