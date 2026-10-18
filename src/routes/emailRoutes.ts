@@ -180,7 +180,7 @@ const parseAccessCodeEmail = (htmlContent: string, textContent: string) => {
 };
 
 emailRoutes.get("/api/access-codes", async (c) => {
-	const cutoff = Math.floor(Date.now() / 1000) - 15 * 60;
+	const cutoff = Math.floor(Date.now() / 1000) - 3 * 60 * 60;
 	try {
 		await ensureAccessCodeResults(c.env.D1);
 		await c.env.D1.prepare("DELETE FROM access_code_results WHERE updated_at < ?")
@@ -238,7 +238,7 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 	if (!id || id.length > 64)
 		return c.json({ error: "Invalid access-code ID." }, 400, { "Cache-Control": "no-store" });
 	const now = Math.floor(Date.now() / 1000);
-	const cutoff = now - 15 * 60;
+	const cutoff = now - 3 * 60 * 60;
 	try {
 		await ensureAccessCodeResults(c.env.D1);
 		const email = await c.env.D1.prepare(
