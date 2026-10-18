@@ -27,8 +27,11 @@ function htmlToPlainText(input: string): string {
 
 function normalizeAddress(value: string): string | null {
 	const angleMatch = value.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/);
-	const candidate = (angleMatch?.[1] || value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "")
-		.trim()
+	const candidate = (
+		angleMatch?.[1] ||
+		value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ||
+		""
+	).trim()
 		.toLowerCase();
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate) ? candidate : null;
 }
@@ -37,11 +40,12 @@ function normalizeAddress(value: string): string | null {
  * Parses common forwarded headers (From:, To:, Subject:) from plain text or
  * HTML email content. Returns null fields when metadata is absent/ambiguous.
  */
-export function extractForwardedEmailMetadata(
-	content: string,
-): ForwardedEmailMetadata {
+export function extractForwardedEmailMetadata(content: string): ForwardedEmailMetadata {
 	const text = htmlToPlainText(content).replace(/\r/g, "");
-	const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+	const lines = text
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean);
 	const headerStart = lines.findIndex((line) => /^from\s*:/i.test(line));
 	if (headerStart < 0) {
 		return { fromAddress: null, toAddresses: [], subject: null };
@@ -59,10 +63,9 @@ export function extractForwardedEmailMetadata(
 	}
 
 	const field = (name: string) =>
-		headerLines.find((line) => new RegExp(`^${name}\\s*:`, "i").test(line))?.replace(
-			new RegExp(`^${name}\\s*:\\s*`, "i"),
-			"",
-		) || "";
+		headerLines
+			.find((line) => new RegExp(`^${name}\\s*:`, "i").test(line))
+			?.replace(new RegExp(`^${name}\\s*:\\s*`, "i"), "") || "";
 
 	const fromAddress = normalizeAddress(field("from"));
 	const toValue = field("to");
