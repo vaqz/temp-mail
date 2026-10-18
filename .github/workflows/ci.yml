@@ -28,3 +28,6 @@ jobs:
 
       - name: Run linter
         run: bun run lint
+
+      - name: Run unit tests
+        run: bun test src/config/otpServiceRegistry.test.ts
