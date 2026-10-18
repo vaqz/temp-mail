@@ -297,7 +297,7 @@ emailRoutes.post("/api/access-codes/:id/retrieve", async (c) => {
 				});
 				const html = await response.text();
 				const codeMatch =
-				html.match(/class="[^"]*"[^>]*>\s*(\d{4})\s*<\/div>/i) || html.match(/>(\d{4})</);
+					html.match(/class="[^"]*"[^>]*>\s*(\d{4})\s*<\/div>/i) || html.match(/>(\d{4})</);
 				const accessCode = response.ok && codeMatch?.[1] ? codeMatch[1] : null;
 				const status = accessCode ? "success" : "failed";
 				const message = accessCode
