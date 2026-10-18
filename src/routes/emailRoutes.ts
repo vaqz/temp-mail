@@ -180,11 +180,12 @@ const parseAccessCodeEmail = (htmlContent: string, textContent: string) => {
 };
 
 emailRoutes.get("/api/access-codes", async (c) => {
-	const cutoff = Math.floor(Date.now() / 1000) - 3 * 60 * 60;
+	const cutoff = Math.floor(Date.now() / 1000) - 15 * 60;
+	const cleanupCutoff = Math.floor(Date.now() / 1000) - 3 * 60 * 60;
 	try {
 		await ensureAccessCodeResults(c.env.D1);
 		await c.env.D1.prepare("DELETE FROM access_code_results WHERE updated_at < ?")
-			.bind(cutoff)
+			.bind(cleanupCutoff)
 			.run();
 		const { results } = await c.env.D1.prepare(
 			`SELECT e.id, e.subject, e.received_at, e.html_content, e.text_content,
