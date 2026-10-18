@@ -140,7 +140,7 @@ emailRoutes.openapi(getDomainsRoute, async (c) => {
 // Read-only, minimal feed for the Access Code PWA.
 // Only returns recent messages matching the dedicated Netflix temporary-access-code rule.
 emailRoutes.get("/api/access-codes", async (c) => {
-  const cutoff = Math.floor(Date.now() / 1000) - 15 * 60;
+  const cutoff = Math.floor(Date.now() / 1000) - 3 * 60;
   try {
     const { results } = await c.env.D1.prepare(
       `SELECT id, subject, received_at, html_content, text_content
@@ -202,6 +202,37 @@ emailRoutes.get("/api/access-codes", async (c) => {
   } catch (error) {
     console.error("Access Code PWA feed failed:", error);
     return c.json({ error: "Unable to load access codes." }, 500, {
+      "Cache-Control": "no-store",
+    });
+  }
+});
+
+
+// Consume a Netflix access-code email after the customer confirms and opens its link.
+// The email ID is an unguessable CUID, and deletion is limited to matching public access-code emails.
+emailRoutes.delete("/api/access-codes/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!id || id.length > 64) {
+    return c.json({ error: "Invalid access-code ID." }, 400, {
+      "Cache-Control": "no-store",
+    });
+  }
+
+  try {
+    const result = await c.env.D1.prepare(
+      `DELETE FROM emails
+       WHERE id = ?
+         AND is_public = 1
+         AND lower(subject) LIKE '%netflix%'
+         AND lower(subject) LIKE '%temporary access code%'`,
+    ).bind(id).run();
+
+    return c.json({ consumed: Number(result.meta.changes || 0) > 0 }, 200, {
+      "Cache-Control": "no-store, max-age=0",
+    });
+  } catch (error) {
+    console.error("Access Code consume request failed:", error);
+    return c.json({ error: "Unable to consume access code." }, 500, {
       "Cache-Control": "no-store",
     });
   }
