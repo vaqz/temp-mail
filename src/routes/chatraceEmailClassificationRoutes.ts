@@ -6,7 +6,7 @@ const chatraceEmailRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
 function authorized(c: any) {
 	const expected = String(c.env.CHATRACE_API_TOKEN || "");
-	const supplied = String(c.req.header("Authorization") || "").replace(/^Bearer\\s+/i, "");
+	const supplied = String(c.req.header("Authorization") || "").replace(/^Bearer\s+/i, "");
 	return Boolean(expected && supplied && supplied === expected);
 }
 
@@ -17,7 +17,7 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 	const email = String(body?.email || body?.net_acct_email || "")
 		.trim()
 		.toLowerCase();
-	if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254) {
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
 		return c.json({ status: "error", message: "A valid email address is required." }, 400);
 	}
 
