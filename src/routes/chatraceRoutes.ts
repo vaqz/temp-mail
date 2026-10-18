@@ -300,7 +300,6 @@ chatraceRoutes.post("/admin/api/orders/:orderId/confirm-payment", async (c) => {
 	}
 });
 
-
 // ChatRace access-code endpoint. Uses the same D1 mailbox and one-time-link
 // cache as the Access Code PWA; never returns the Netflix verification URL.
 async function ensureChatRaceAccessCodeResults(db: D1Database) {
@@ -351,15 +350,15 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 			.trim()
 			.toLowerCase();
 		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-			undefined
+			return c.json(
+				{ status: "error", message: "A valid email address is required.", code: null },
+				400,
+				{ "Cache-Control": "no-store" },
+			);
 		}
 		const now = Math.floor(Date.now() / 1000);
 		const cutoff = now - 15 * 60;
-		const cleanupCutoff = now - 3 * 60 * 60;
 		await ensureChatRaceAccessCodeResults(c.env.D1);
-		await c.env.D1.prepare("DELETE FROM access_code_results WHERE updated_at < ?")
-			.bind(cleanupCutoff)
-			.run();
 
 		const emailRow = await c.env.D1.prepare(`
 			SELECT id, subject, received_at, html_content, text_content
@@ -393,9 +392,16 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 			emailRow.html_content || "",
 			emailRow.text_content || "",
 		);
-		if (!parsed) return c.json({
-			status: "error", message: "The Netflix verification link could not be extracted from the email.", code: null
-		}, 422, { "Cache-Control": "no-store" });
+		if (!parsed)
+			return c.json(
+				{
+					status: "error",
+					message: "The Netflix verification link could not be extracted from the email.",
+					code: null,
+				},
+				422,
+				{ "Cache-Control": "no-store" },
+			);
 
 		const claim = await c.env.D1.prepare(`
 			INSERT OR IGNORE INTO access_code_results
@@ -404,10 +410,15 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 		`).bind(emailRow.id, parsed.profile, now, now).run();
 
 		let saved = await c.env.D1.prepare(
-			"SELECT status, access_code, message, profile FROM access_code_results WHERE email_id = ?"
-		).bind(emailRow.id).first<{
-			status: string; access_code: string | null; message: string | null; profile: string;
-		}>();
+			"SELECT status, access_code, message, profile FROM access_code_results WHERE email_id = ?",
+		)
+			.bind(emailRow.id)
+			.first<{
+				status: string;
+				access_code: string | null;
+				message: string | null;
+				profile: string;
+			}>();
 
 		if (claim.meta.changes > 0) {
 			try {
@@ -437,28 +448,39 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 					? "Code retrieved."
 					: "Code not found; the link may be expired or Netflix may have changed its page.";
 				await c.env.D1.prepare(
-					"UPDATE access_code_results SET status = ?, access_code = ?, message = ?, updated_at = ? WHERE email_id = ?"
-				).bind(status, code, message, Math.floor(Date.now() / 1000), emailRow.id).run();
+					"UPDATE access_code_results SET status = ?, access_code = ?, message = ?, updated_at = ? WHERE email_id = ?",
+				)
+					.bind(status, code, message, Math.floor(Date.now() / 1000), emailRow.id)
+					.run();
 				saved = { status, access_code: code, message, profile: parsed.profile };
 			} catch (error) {
 				const message = "Unable to retrieve code from Netflix.";
 				await c.env.D1.prepare(
-					"UPDATE access_code_results SET status = 'failed', message = ?, updated_at = ? WHERE email_id = ?"
-				).bind(message, Math.floor(Date.now() / 1000), emailRow.id).run();
+					"UPDATE access_code_results SET status = 'failed', message = ?, updated_at = ? WHERE email_id = ?",
+				)
+					.bind(message, Math.floor(Date.now() / 1000), emailRow.id)
+					.run();
 				saved = { status: "failed", access_code: null, message, profile: parsed.profile };
 				console.error("ChatRace access-code retrieval failed:", error);
 			}
 		}
-		return c.json({
-			status: saved?.status || "processing",
-			message: saved?.message || "Retrieval is in progress. Try again shortly.",
-			code: saved?.status === "success" ? saved.access_code : null,
-			profile: saved?.profile || parsed.profile,
-		}, 200, { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" });
+		return c.json(
+			{
+				status: saved?.status || "processing",
+				message: saved?.message || "Retrieval is in progress. Try again shortly.",
+				code: saved?.status === "success" ? saved.access_code : null,
+				profile: saved?.profile || parsed.profile,
+			},
+			200,
+			{ "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" },
+		);
 	} catch (error) {
 		console.error("ChatRace access-code endpoint failed:", error);
-		return c.json({ status: "error", message: "Unable to retrieve access code.", code: null }, 500,
-			{ "Cache-Control": "no-store" });
+		return c.json(
+			{ status: "error", message: "Unable to retrieve access code.", code: null },
+			500,
+			{ "Cache-Control": "no-store" },
+		);
 	}
 });
 
