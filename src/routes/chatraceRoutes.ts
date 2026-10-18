@@ -407,7 +407,9 @@ chatraceRoutes.post("/api/chatrace/access-code", async (c) => {
 			INSERT OR IGNORE INTO access_code_results
 			(email_id, profile, status, access_code, message, created_at, updated_at)
 			VALUES (?, ?, 'processing', NULL, NULL, ?, ?)
-		`).bind(emailRow.id, parsed.profile, now, now).run();
+		`)
+			.bind(emailRow.id, parsed.profile, now, now)
+			.run();
 
 		let saved = await c.env.D1.prepare(
 			"SELECT status, access_code, message, profile FROM access_code_results WHERE email_id = ?",
