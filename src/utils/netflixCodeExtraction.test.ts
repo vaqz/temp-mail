@@ -63,8 +63,7 @@ describe("parseTemporaryAccessEmail", () => {
 
 describe("extractCodeFromNetflixPage", () => {
 	test("extracts verification code from page text", () => {
-		const html =
-			"<html><body><p>Your verification code is <strong>6042</strong></p></body></html>";
+		const html = "<html><body><p>Your verification code is <strong>6042</strong></p></body></html>";
 		expect(extractCodeFromNetflixPage(html)).toBe("6042");
 	});
 });

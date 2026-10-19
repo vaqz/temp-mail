@@ -40,9 +40,7 @@ export function extractSignInCodeFromBody(htmlContent: string, textContent: stri
 	if (!pageText) return null;
 
 	const contextual =
-		pageText.match(
-			/(?:sign[-\s]?in\s+)?(?:verification\s+)?\bcode\b[^0-9]{0,80}(\d{4})\b/i,
-		) ||
+		pageText.match(/(?:sign[-\s]?in\s+)?(?:verification\s+)?\bcode\b[^0-9]{0,80}(\d{4})\b/i) ||
 		pageText.match(
 			/\b(\d{4})\b[^a-z0-9]{0,40}(?:is your )?(?:sign[-\s]?in |verification )?\bcode\b/i,
 		) ||

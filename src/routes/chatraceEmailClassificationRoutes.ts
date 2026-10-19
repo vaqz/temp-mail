@@ -73,8 +73,7 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 
 			// Only attempt code extraction for confirmed Netflix patterns.
 			const isConfirmedNetflix =
-				classification.service === "netflix" &&
-				classification.confidence === "confirmed_pattern";
+				classification.service === "netflix" && classification.confidence === "confirmed_pattern";
 			if (!isConfirmedNetflix) {
 				return c.json(
 					{
@@ -96,8 +95,7 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 			let code: string | null = null;
 			let profile: string | null = null;
 			let message = "Code not found in the email.";
-			let deliveryStatus: "matched" | "code_ready" | "code_failed" | "code_processing" =
-				"matched";
+			let deliveryStatus: "matched" | "code_ready" | "code_failed" | "code_processing" = "matched";
 
 			if (classification.messageType === "sign_in") {
 				code = extractSignInCodeFromBody(htmlContent, bodyText);
@@ -112,8 +110,7 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 				const parsed = parseTemporaryAccessEmail(htmlContent, bodyText);
 				if (!parsed) {
 					deliveryStatus = "code_failed";
-					message =
-							"Temporary-access email found but the verification link could not be parsed.";
+					message = "Temporary-access email found but the verification link could not be parsed.";
 				} else {
 					const retrieved = await retrieveTemporaryAccessCode(c.env.D1, row.id, parsed);
 					code = retrieved.code;
