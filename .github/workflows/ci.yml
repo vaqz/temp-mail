@@ -28,3 +28,6 @@ jobs:
 
       - name: Run linter
         run: bun run lint
+
+      - name: Run unit tests
+        run: bun test src/config/otpServiceRegistry.test.ts src/utils/forwardedEmailMetadata.test.ts src/utils/classifyForwardedOtpEmail.test.ts src/utils/netflixCodeExtraction.test.ts
