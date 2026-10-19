@@ -72,7 +72,10 @@ chatraceEmailRoutes.post("/api/chatrace/email-classification", async (c) => {
 			});
 
 			// Only attempt code extraction for confirmed Netflix patterns.
-			if (classification.service !== "netflix" || classification.confidence !== "confirmed_pattern") {
+			const isConfirmedNetflix =
+				classification.service === "netflix" &&
+				classification.confidence === "confirmed_pattern";
+			if (!isConfirmedNetflix) {
 				return c.json(
 					{
 						status: "matched",

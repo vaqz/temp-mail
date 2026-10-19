@@ -16,7 +16,10 @@ describe("extractSignInCodeFromBody", () => {
 	});
 
 	test("extracts code from HTML sign-in email", () => {
-		const html = `<html><body><p>Enter this code to sign in</p><h1>7390</h1><p>This code expires soon.</p></body></html>`;
+		const html = [
+			"<html><body><p>Enter this code to sign in</p>",
+			"<h1>7390</h1><p>This code expires soon.</p></body></html>",
+		].join("");
 		expect(extractSignInCodeFromBody(html, "")).toBe("7390");
 	});
 
@@ -35,8 +38,12 @@ describe("extractSignInCodeFromBody", () => {
 
 describe("parseTemporaryAccessEmail", () => {
 	test("parses profile and trusted travel-verify link", () => {
-		const html = `<p>Hi <span>Family Profile</span>,</p>
-<td class="h5 button-td"><a href="https://www.netflix.com/account/travel/verify?nftoken=abc123">Get Code</a></td>`;
+		const html = [
+			"<p>Hi <span>Family Profile</span>,</p>",
+			'<td class="h5 button-td">',
+			'<a href="https://www.netflix.com/account/travel/verify?nftoken=abc123">Get Code</a>',
+			"</td>",
+		].join("\n");
 		expect(parseTemporaryAccessEmail(html, "Hi Family Profile,")).toEqual({
 			profile: "Family Profile",
 			link: "https://www.netflix.com/account/travel/verify?nftoken=abc123",
@@ -56,7 +63,8 @@ describe("parseTemporaryAccessEmail", () => {
 
 describe("extractCodeFromNetflixPage", () => {
 	test("extracts verification code from page text", () => {
-		const html = `<html><body><p>Your verification code is <strong>6042</strong></p></body></html>`;
+		const html =
+			"<html><body><p>Your verification code is <strong>6042</strong></p></body></html>";
 		expect(extractCodeFromNetflixPage(html)).toBe("6042");
 	});
 });

@@ -149,7 +149,9 @@ export async function retrieveTemporaryAccessCode(
 		.run();
 
 	let saved = await db
-		.prepare("SELECT status, access_code, message, profile FROM access_code_results WHERE email_id = ?")
+		.prepare(
+			"SELECT status, access_code, message, profile FROM access_code_results WHERE email_id = ?",
+		)
 		.bind(emailId)
 		.first<{
 			status: string;
@@ -174,7 +176,9 @@ export async function retrieveTemporaryAccessCode(
 				: "Code not found; the link may be expired or Netflix may have changed its page.";
 			await db
 				.prepare(
-					"UPDATE access_code_results SET status = ?, access_code = ?, message = ?, updated_at = ? WHERE email_id = ?",
+					`UPDATE access_code_results
+					 SET status = ?, access_code = ?, message = ?, updated_at = ?
+					 WHERE email_id = ?`,
 				)
 				.bind(status, accessCode, message, Math.floor(Date.now() / 1000), emailId)
 				.run();
@@ -183,7 +187,9 @@ export async function retrieveTemporaryAccessCode(
 			const message = "Unable to retrieve code from Netflix.";
 			await db
 				.prepare(
-					"UPDATE access_code_results SET status = 'failed', message = ?, updated_at = ? WHERE email_id = ?",
+					`UPDATE access_code_results
+					 SET status = 'failed', message = ?, updated_at = ?
+					 WHERE email_id = ?`,
 				)
 				.bind(message, Math.floor(Date.now() / 1000), emailId)
 				.run();
