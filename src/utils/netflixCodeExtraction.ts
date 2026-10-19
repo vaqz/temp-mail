@@ -32,19 +32,28 @@ export function stripToPlainText(input: string): string {
 }
 
 /**
- * Extract a 4-digit Netflix sign-in / OTP code from email body text.
- * Prefers digits near code-related wording; falls back to a single unambiguous group.
+ * Netflix often renders each digit of the sign-in code in its own HTML element,
+ * which becomes spaced digits after tag stripping (e.g. "8 0 7 0"). Normalize
+ * those sequences back into a contiguous 4-digit code before matching.
  */
+function collapseSpacedFourDigitCodes(text: string): string {
+	return text.replace(/\b(\d)\s+(\d)\s+(\d)\s+(\d)\b/g, "$1$2$3$4");
+}
+
 export function extractSignInCodeFromBody(htmlContent: string, textContent: string): string | null {
-	const pageText = stripToPlainText(`${textContent || ""}\n${htmlContent || ""}`);
-	if (!pageText) return null;
+	const raw = stripToPlainText(`${textContent || ""}\n${htmlContent || ""}`);
+	if (!raw) return null;
+	const pageText = collapseSpacedFourDigitCodes(raw);
 
 	const contextual =
 		pageText.match(/(?:sign[-\s]?in\s+)?(?:verification\s+)?\bcode\b[^0-9]{0,80}(\d{4})\b/i) ||
 		pageText.match(
 			/\b(\d{4})\b[^a-z0-9]{0,40}(?:is your )?(?:sign[-\s]?in |verification )?\bcode\b/i,
 		) ||
-		pageText.match(/(?:enter|use)\s+(?:this\s+)?\bcode\b[^0-9]{0,40}\b(\d{4})\b/i);
+		pageText.match(/(?:enter|use)\s+(?:this\s+)?\bcode\b[^0-9]{0,40}\b(\d{4})\b/i) ||
+		pageText.match(
+			/(?:enter\s+this\s+code\s+to\s+sign\s*in|enter\s+the\s+code\s+above)[^0-9]{0,40}(\d{4})\b/i,
+		);
 
 	if (contextual?.[1]) return contextual[1];
 

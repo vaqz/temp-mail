@@ -45,4 +45,17 @@ Hi V&M-2,`),
 		expect(result.toAddresses).toEqual(["customer@example.com"]);
 		expect(result.toAddresses).not.toContain("vaqz@vmhub.top");
 	});
+
+	test("does not swallow Netflix body into subject", () => {
+		const result = extractForwardedEmailMetadata(`From: Netflix <info@account.netflix.com>
+To: customer+24@hotmail.com
+Subject: Netflix: Your sign-in code
+
+Enter this code to sign in
+8070
+Enter the code above on your device`);
+		expect(result.subject).toBe("Netflix: Your sign-in code");
+		expect(result.fromAddress).toBe("info@account.netflix.com");
+		expect(result.toAddresses).toContain("customer+24@hotmail.com");
+	});
 });

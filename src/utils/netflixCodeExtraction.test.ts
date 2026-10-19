@@ -34,6 +34,29 @@ describe("extractSignInCodeFromBody", () => {
 	test("returns null for empty content", () => {
 		expect(extractSignInCodeFromBody("", "")).toBeNull();
 	});
+
+	test("extracts code when Netflix splits digits across HTML elements", () => {
+		const html = [
+			"<p>Enter this code to sign in</p>",
+			"<td>8</td><td>0</td><td>7</td><td>0</td>",
+			"<p>Enter the code above on your device to sign in to Netflix.</p>",
+		].join("");
+		expect(extractSignInCodeFromBody(html, "")).toBe("8070");
+	});
+
+	test("extracts spaced digits from plain forwarded text body", () => {
+		const text = [
+			"From: Netflix <info@account.netflix.com>",
+			"To: customer+24@hotmail.com",
+			"Subject: Netflix: Your sign-in code",
+			"",
+			"Enter this code to sign in",
+			"8 0 7 0",
+			"Enter the code above on your device to sign in to Netflix.",
+			"This code will expire in 15 minutes.",
+		].join("\n");
+		expect(extractSignInCodeFromBody("", text)).toBe("8070");
+	});
 });
 
 describe("parseTemporaryAccessEmail", () => {

@@ -58,7 +58,11 @@ export function extractForwardedEmailMetadata(content: string): ForwardedEmailMe
 	const headerLines: string[] = [];
 	for (let i = headerStart; i < Math.min(lines.length, headerStart + 20); i++) {
 		const line = lines[i];
-		if (i > headerStart && /^(?:hi\s|hello\s|dear\s|your\s|we\s|if\s)/i.test(line)) break;
+		if (
+			i > headerStart &&
+			/^(?:hi\s|hello\s|dear\s|your\s|we\s|if\s|enter\s|netflix\b)/i.test(line)
+		)
+			break;
 		if (/^(?:from|to|cc|sent|date|subject)\s*:/i.test(line)) {
 			headerLines.push(line);
 		} else if (headerLines.length > 0 && !/^[A-Za-z][A-Za-z -]{0,20}:/.test(line)) {
